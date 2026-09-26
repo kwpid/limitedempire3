@@ -502,8 +502,19 @@ function PlayerDataService:Pump(userId: number)
 	pumping[userId] = true
 	task.spawn(function()
 		local key = tostring(userId)
-		local ok, view = pcall(store.GetAsync, store, key)
-		if ok and view and not view.Session then
+		-- a player who just left still shows a session until their last save lands, so look again a few times.
+		-- a player really in another server handles their messages there (MessageAsync asked that server to save)
+		local ok, view
+		for attempt = 1, 4 do
+			ok, view = pcall(store.GetAsync, store, key)
+			if not ok or not view or not view.Session or Players:GetPlayerByUserId(userId) then
+				break
+			end
+			if attempt < 4 then
+				task.wait(5)
+			end
+		end
+		if ok and view and not view.Session and not Players:GetPlayerByUserId(userId) then
 			local profile = store:StartSessionAsync(key, {
 				Cancel = function()
 					return Players:GetPlayerByUserId(userId) ~= nil

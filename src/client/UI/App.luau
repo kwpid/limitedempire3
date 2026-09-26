@@ -124,9 +124,11 @@ local function App(props)
 	local trades = useTrades()
 	-- the open trade composer: nil, or { counter? } (a new trade or a counter to one)
 	local composing, setComposing = React.useState(nil)
+	-- an item from a trade being inspected (it may not be yours)
+	local inspectTradeItem, setInspectTradeItem = React.useState(nil)
 
 	local inspectItem = inspectUid and state.inventory[inspectUid]
-	local focused = opening ~= nil or inspectItem ~= nil
+	local focused = opening ~= nil or inspectItem ~= nil or inspectTradeItem ~= nil
 	useFocusMode(focused)
 
 	React.useLayoutEffect(function()
@@ -358,6 +360,15 @@ local function App(props)
 					again,
 				},
 		})
+	elseif inspectTradeItem then
+		focusContent = e(InspectView, {
+			item = inspectTradeItem,
+			caption = if state.inventory[inspectTradeItem.uid] then "Your item" else "Trade item",
+			onClose = function()
+				setInspectTradeItem(nil)
+			end,
+			actions = {},
+		})
 	elseif inspectItem then
 		local equipped = table.find(state.equipped, inspectItem.uid) ~= nil
 		local equippable = ItemRegistry.isEquippable(inspectItem.assetId)
@@ -529,11 +540,13 @@ local function App(props)
 					trades = trades,
 					inventory = state.inventory,
 					onCompose = setComposing,
+					onInspectItem = setInspectTradeItem,
 				}),
 			}),
 			Composer = page == "trades" and composing and e(TradeComposer, {
 				inventory = state.inventory,
 				counter = composing.counter,
+				onInspectItem = setInspectTradeItem,
 				onDone = function()
 					setComposing(nil)
 				end,
@@ -621,6 +634,7 @@ local function App(props)
 	if focusContent then
 		local contentKey = if opening
 			then `Opening{opening.key}{if opening.cutscene then "Cutscene" elseif opening.revealed then "Reveal" else "Reel"}`
+			elseif inspectTradeItem then `InspectTrade{inspectTradeItem.uid}`
 			else `Inspect{inspectUid}`
 		focusChildren[contentKey] = focusContent
 	end

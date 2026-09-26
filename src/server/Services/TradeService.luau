@@ -11,6 +11,12 @@
 -- decline / cancel / counter move both copies out of pending. a counter is a decline plus a new trade back.
 -- items stay in the sender's inventory while a trade is pending (like Roblox), so a trade whose items are gone by
 -- the time it is accepted goes inactive. pending trades expire after Config.Trade.ExpireDays.
+-- anti-scam: a trade only goes through with the exact items both players saw. items are matched by uid and by
+-- fingerprint (item, float, serial, traits, stat tracker), so an item that changed since the trade was sent fails
+-- the trade instead of swapping in something else.
+-- leaving: every step lives in saved data and messages, so either player can leave (or a server can crash) at any
+-- point. an accept is finished by the sender's server, or by this server opening their profile when they are
+-- offline, and the receiver gets their side when they are next loaded.
 --
 -- client: Net.functions.TradeAction(action, payload) -> Result. actions: list, lookup { name } -> { userId, name },
 -- inventory { userId } -> { name, items }, send { userId, give, get }, accept { id }, decline { id }, cancel { id },
@@ -41,10 +47,14 @@ local MAX_NAME_LENGTH = 20
 -- lookups hit Roblox web apis and datastore reads, so each gets a longer cooldown of its own
 local LOOKUP_COOLDOWN = 2
 local LOOKUPS = { lookup = true, inventory = true }
+-- sending writes to the other player's datastore key, so sends get a cooldown of their own
+local SEND_COOLDOWN = 3
+local SENDS = { send = true, counter = true }
 local HISTORY = { completed = true, declined = true, countered = true, cancelled = true, inactive = true }
 
 local lastAction: { [Player]: number } = {}
 local lastLookup: { [Player]: { [string]: number } } = {}
+local lastSend: { [Player]: number } = {}
 local busy: { [Player]: boolean } = {}
 local inventoryCache: { [number]: { at: number, name: string, inventory: { [string]: ItemInstance } } } = {}
 
@@ -78,13 +88,47 @@ local function uidsOf(items: { ItemInstance }): { string }
 	return uids
 end
 
-local function owns(inventory, uids: { string }): boolean
-	for _, uid in uids do
-		if not inventory[uid] then
+-- what makes an item the item: the same uid can't hold a different item, but this also catches an item that was
+-- changed after the trade was sent (the stat tracker count can grow, only having one counts)
+local function fingerprint(item: ItemInstance): string
+	local traits = table.clone(item.traits or (if item.trait then { item.trait } else {}))
+	table.sort(traits)
+	-- floats go through datastore / message json, so they are compared to 10 places (the ui shows 6)
+	local float = string.format("%.10f", tonumber(item.float) or -1)
+	return `{item.assetId}|{float}|{item.serial}|{table.concat(traits, ",")}|{item.tracker ~= nil}`
+end
+
+-- true when the inventory holds every listed item, unchanged from the listed copy
+local function owns(inventory, items: { ItemInstance }): boolean
+	for _, item in items do
+		local held = inventory[item.uid]
+		if not held or fingerprint(held) ~= fingerprint(item) then
 			return false
 		end
 	end
 	return true
+end
+
+-- true when both lists are the same items (order aside)
+local function sameItems(a: { ItemInstance }, b: { ItemInstance }): boolean
+	if #a ~= #b then
+		return false
+	end
+	local byUid = {}
+	for _, item in a do
+		byUid[item.uid] = fingerprint(item)
+	end
+	for _, item in b do
+		if byUid[item.uid] ~= fingerprint(item) then
+			return false
+		end
+		byUid[item.uid] = nil
+	end
+	return next(byUid) == nil
+end
+
+local function validUserId(userId: any): boolean
+	return type(userId) == "number" and userId > 0 and userId % 1 == 0 and userId < 2 ^ 53
 end
 
 -- copies of the listed items, nil if any is missing
@@ -277,8 +321,9 @@ local function createTrade(ctx, targetId: number, giveUids: { string }, getUids:
 	if not theirs then
 		return nil, err
 	end
-	-- the lookup can yield, so the player's own items are checked after it
-	if not PlayerDataService:GetData(ctx.player) then
+	-- the lookup can yield, so the player's own items are checked after it (and on the data they have now, in case
+	-- they left and came back meanwhile)
+	if PlayerDataService:GetData(ctx.player) ~= ctx.data then
 		return nil, "Your data isn't loaded"
 	end
 	local give = pick(ctx.data.inventory, giveUids)
@@ -331,7 +376,7 @@ local actions = {}
 
 function actions.send(ctx, payload): Types.Result<nil>
 	local give, get = cleanUids(payload.give), cleanUids(payload.get)
-	if type(payload.userId) ~= "number" or not give or not get then
+	if not validUserId(payload.userId) or not give or not get then
 		return { ok = false, err = "Invalid trade" }
 	end
 	local _, err = createTrade(ctx, payload.userId, give, get)
@@ -348,13 +393,18 @@ function actions.accept(ctx, payload): Types.Result<nil>
 		return { ok = false, err = err }
 	end
 	local uids = uidsOf(trade.give)
-	if not owns(ctx.data.inventory, uids) then
+	if not owns(ctx.data.inventory, trade.give) then
 		setStatus(trade, "inactive", "You no longer had all of your items")
 		ctx.send(trade.partnerId, { t = "decline", id = trade.id, fromId = ctx.userId, reason = "inactive" })
 		notify(ctx)
 		return { ok = false, err = "You no longer have all of your items, the trade is now inactive" }
 	end
 	local escrow = takeItems(ctx, uids)
+	if #escrow ~= #uids then
+		-- can't happen after the check above, but never leave items half taken
+		giveItems(ctx, escrow)
+		return { ok = false, err = "Something went wrong, try again" }
+	end
 	trade.escrow = escrow
 	setStatus(trade, "processing")
 	ctx.send(trade.partnerId, { t = "accept", id = trade.id, fromId = ctx.userId, items = deepCopy(escrow) }, true)
@@ -425,7 +475,7 @@ end
 
 function actions.inventory(ctx, payload): Types.Result<any>
 	local userId = payload.userId
-	if type(userId) ~= "number" or userId == ctx.userId then
+	if not validUserId(userId) or userId == ctx.userId then
 		return { ok = false, err = "Invalid player" }
 	end
 	local inventory, name, err = inventoryOf(userId)
@@ -441,7 +491,10 @@ end
 
 -- profile messages from the other side of a trade (see the flow at the top)
 local function handleMessage(ctx, message: any)
-	if type(message) ~= "table" or type(message.id) ~= "string" or type(message.fromId) ~= "number" then
+	if type(message) ~= "table" or type(message.id) ~= "string" or not validUserId(message.fromId) then
+		return
+	end
+	if message.fromId == ctx.userId then
 		return
 	end
 	local trades = tradesOf(ctx.data)
@@ -468,7 +521,7 @@ local function handleMessage(ctx, message: any)
 		}
 		note = { text = `New trade from {name}`, kind = "info" }
 	elseif kind == "decline" then
-		if not trade or trade.direction ~= "outbound" or trade.status ~= "pending" then
+		if not trade or trade.direction ~= "outbound" or trade.status ~= "pending" or trade.partnerId ~= message.fromId then
 			return
 		end
 		if message.reason == "countered" then
@@ -481,7 +534,7 @@ local function handleMessage(ctx, message: any)
 			note = { text = `{trade.partnerName} declined your trade`, kind = "bad" }
 		end
 	elseif kind == "cancel" then
-		if not trade or trade.direction ~= "inbound" or trade.status ~= "pending" then
+		if not trade or trade.direction ~= "inbound" or trade.status ~= "pending" or trade.partnerId ~= message.fromId then
 			return
 		end
 		setStatus(trade, "cancelled")
@@ -494,9 +547,13 @@ local function handleMessage(ctx, message: any)
 			reason = "The trade no longer exists"
 		elseif trade.status ~= "pending" then
 			reason = `The trade was already {trade.status}`
-		elseif not validItems(message.items) then
+		elseif trade.partnerId ~= message.fromId or not validItems(message.items) then
 			reason = "The trade was invalid"
-		elseif not owns(ctx.data.inventory, uidsOf(trade.give)) then
+		elseif not sameItems(message.items, trade.get) then
+			-- the receiver's items aren't the ones this trade asked for
+			reason = "The items didn't match the trade"
+			setStatus(trade, "inactive", "The other player's items didn't match the trade")
+		elseif not owns(ctx.data.inventory, trade.give) then
 			reason = "The other player no longer had all of their items"
 			setStatus(trade, "inactive", "You no longer had all of your items")
 		end
@@ -513,7 +570,9 @@ local function handleMessage(ctx, message: any)
 			note = { text = `{done.partnerName} accepted your trade`, kind = "good" }
 		end
 	elseif kind == "complete" then
-		if not trade or trade.direction ~= "inbound" or trade.status ~= "processing" or not validItems(message.items) then
+		if not trade or trade.direction ~= "inbound" or trade.status ~= "processing" then
+			return
+		elseif trade.partnerId ~= message.fromId or not validItems(message.items) then
 			return
 		end
 		giveItems(ctx, message.items)
@@ -523,6 +582,8 @@ local function handleMessage(ctx, message: any)
 		note = { text = `Trade with {trade.partnerName} completed`, kind = "good" }
 	elseif kind == "refund" then
 		if not trade or trade.direction ~= "inbound" or trade.status ~= "processing" then
+			return
+		elseif trade.partnerId ~= message.fromId then
 			return
 		end
 		giveItems(ctx, trade.escrow or {})
@@ -552,6 +613,8 @@ function TradeService:Init()
 			return { ok = false, err = "Slow down a little" }
 		elseif LOOKUPS[action] and now - ((lastLookup[player] or {})[action] or -math.huge) < LOOKUP_COOLDOWN then
 			return { ok = false, err = "Slow down a little" }
+		elseif SENDS[action] and lastSend[player] and now - lastSend[player] < SEND_COOLDOWN then
+			return { ok = false, err = "Wait a moment before sending another trade" }
 		end
 		if busy[player] then
 			return { ok = false, err = "Still working on your last request" }
@@ -570,6 +633,9 @@ function TradeService:Init()
 		busy[player] = true
 		local ok, result = pcall(handler, ctx, if type(payload) == "table" then payload else {})
 		busy[player] = nil
+		if ok and SENDS[action] and result.ok then
+			lastSend[player] = os.clock()
+		end
 		if not ok then
 			warn(`[TradeService] {action} failed for {player.Name}: {result}`)
 			return { ok = false, err = "Something went wrong, try again" }
@@ -587,6 +653,7 @@ function TradeService:Init()
 	Players.PlayerRemoving:Connect(function(player: Player)
 		lastAction[player] = nil
 		lastLookup[player] = nil
+		lastSend[player] = nil
 		busy[player] = nil
 	end)
 end
