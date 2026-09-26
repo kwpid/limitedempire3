@@ -36,8 +36,8 @@ local HOLD_TIME = 1.4
 local ROUND_TIME = SPIN_TIME + HOLD_TIME
 local REEL_TILES = 34
 local REEL_WIN = 29
-local TILE_H = 88
-local REEL_HEIGHT = 150
+local TILE_W = 96
+local REEL_HEIGHT = 112
 
 local function useBattles()
 	local state, setState = React.useState(Battles.get())
@@ -633,20 +633,20 @@ local function easeOut(t: number): number
 	return 1 - (1 - t) ^ 4
 end
 
--- one tile of the vertical reel: the item (or the hidden special tile) over its rarity color
+-- one tile of the reel: the item (or the hidden special tile) over its rarity color
 local function ReelTile(props)
 	local assetId = props.assetId
 	if CaseRegistry.isSpecial(assetId) and not props.reveal then
 		return e(SpecialTile, {
 			compact = true,
 			position = props.position,
-			size = UDim2.new(1, -8, 0, TILE_H - 6),
+			size = UDim2.new(0, TILE_W - 6, 1, -8),
 		})
 	end
 	local tier = ItemRegistry.tier(assetId)
 	return e("Frame", {
 		Position = props.position,
-		Size = UDim2.new(1, -8, 0, TILE_H - 6),
+		Size = UDim2.new(0, TILE_W - 6, 1, -8),
 		BackgroundColor3 = Theme.colors.panel,
 		BorderSizePixel = 0,
 	}, {
@@ -669,7 +669,7 @@ local function ReelTile(props)
 		Image = e("ImageLabel", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromOffset(TILE_H - 20, TILE_H - 20),
+			Size = UDim2.fromOffset(TILE_W - 22, TILE_W - 22),
 			BackgroundTransparency = 1,
 			Image = ItemRegistry.thumbnail(assetId, 150),
 		}),
@@ -805,7 +805,7 @@ local function Column(props)
 		local rng = Random.new()
 		local list = {}
 		for r = 1, roundCount do
-			list[r] = (rng:NextNumber() - 0.5) * TILE_H * 0.7
+			list[r] = (rng:NextNumber() - 0.5) * TILE_W * 0.7
 		end
 		return list
 	end, {})
@@ -822,14 +822,16 @@ local function Column(props)
 
 	local spinning = not props.finished and round <= roundCount and props.revealed < round
 	local landed = if round <= roundCount and props.revealed >= round then battle.rounds[round][index] else nil
-	local target = (REEL_WIN - 1) * TILE_H + TILE_H / 2 - REEL_HEIGHT / 2 + (jitter[round] or 0)
+	-- the strip is placed from the reel's center, so it lands on the marker whatever the column width
+	local startOffset = TILE_W / 2
+	local target = (REEL_WIN - 1) * TILE_W + TILE_W / 2 + (jitter[round] or 0)
 
 	local tiles = {}
 	for i, assetId in (filler[math.min(round, roundCount)] or {}) do
 		tiles["Tile" .. i] = e(ReelTile, {
 			assetId = assetId,
 			reveal = i == REEL_WIN and not spinning,
-			position = UDim2.fromOffset(4, (i - 1) * TILE_H + 3),
+			position = UDim2.fromOffset((i - 1) * TILE_W + 3, 4),
 		})
 	end
 
@@ -872,39 +874,39 @@ local function Column(props)
 			Strip = if props.finished
 				then nil
 				else e("Frame", {
-					Size = UDim2.new(1, 0, 0, REEL_TILES * TILE_H),
+					Size = UDim2.new(0, REEL_TILES * TILE_W, 1, 0),
 					Position = props.time:map(function(t)
 						local roundT = t - (round - 1) * ROUND_TIME
 						local p = easeOut(math.clamp(roundT / SPIN_TIME, 0, 1))
-						return UDim2.fromOffset(0, -target * p)
+						return UDim2.new(0.5, -(startOffset + (target - startOffset) * p), 0, 0)
 					end),
 					BackgroundTransparency = 1,
 				}, tiles),
 			Marker = e("Frame", {
-				AnchorPoint = Vector2.new(0, 0.5),
-				Position = UDim2.fromScale(0, 0.5),
-				Size = UDim2.new(1, 0, 0, 2),
+				AnchorPoint = Vector2.new(0.5, 0),
+				Position = UDim2.fromScale(0.5, 0),
+				Size = UDim2.new(0, 2, 1, 0),
 				BackgroundColor3 = Theme.colors.marker,
 				BorderSizePixel = 0,
 				ZIndex = 5,
 			}),
-			ShadeTop = e("Frame", {
-				Size = UDim2.new(1, 0, 0.3, 0),
+			ShadeLeft = e("Frame", {
+				Size = UDim2.new(0.22, 0, 1, 0),
 				BackgroundColor3 = Theme.colors.backdrop,
 				BorderSizePixel = 0,
 				ZIndex = 4,
 			}, {
-				Gradient = e("UIGradient", { Rotation = 90, Transparency = NumberSequence.new(0.05, 1) }),
+				Gradient = e("UIGradient", { Transparency = NumberSequence.new(0.05, 1) }),
 			}),
-			ShadeBottom = e("Frame", {
-				AnchorPoint = Vector2.new(0, 1),
-				Position = UDim2.fromScale(0, 1),
-				Size = UDim2.new(1, 0, 0.3, 0),
+			ShadeRight = e("Frame", {
+				AnchorPoint = Vector2.new(1, 0),
+				Position = UDim2.fromScale(1, 0),
+				Size = UDim2.new(0.22, 0, 1, 0),
 				BackgroundColor3 = Theme.colors.backdrop,
 				BorderSizePixel = 0,
 				ZIndex = 4,
 			}, {
-				Gradient = e("UIGradient", { Rotation = 90, Transparency = NumberSequence.new(1, 0.05) }),
+				Gradient = e("UIGradient", { Transparency = NumberSequence.new(1, 0.05) }),
 			}),
 			Winner = props.finished and e(Text, {
 				Size = UDim2.fromScale(1, 1),
