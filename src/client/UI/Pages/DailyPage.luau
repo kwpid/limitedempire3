@@ -20,6 +20,10 @@ local e = React.createElement
 
 local HEADER_HEIGHT = 96
 local GAP = 8
+-- the calendar is placed by hand (7 columns, 2 rows) instead of a UIGridLayout: a grid that fills the width
+-- exactly can round a cell onto a third row, pushing the last days out of view
+local COLUMNS = 7
+local ROWS = 2
 local SP_COLOR = Color3.fromRGB(180, 110, 255)
 local BIG_COLOR = Color3.fromRGB(245, 185, 28)
 
@@ -38,8 +42,11 @@ local function DayCard(props)
 	local accent = if reward.big then BIG_COLOR elseif state == "today" then Theme.colors.good else Theme.colors.stroke
 	local claimed = state == "claimed"
 
+	local column = (props.day - 1) % COLUMNS
+	local row = (props.day - 1) // COLUMNS
 	return e("Frame", {
-		LayoutOrder = props.day,
+		Position = UDim2.new(column / COLUMNS, column * GAP / COLUMNS, row / ROWS, row * GAP / ROWS),
+		Size = UDim2.new(1 / COLUMNS, -GAP * (COLUMNS - 1) / COLUMNS, 1 / ROWS, -GAP * (ROWS - 1) / ROWS),
 		BackgroundColor3 = if state == "today" then Theme.colors.panelLight else Theme.colors.panel,
 		BorderSizePixel = 0,
 	}, {
@@ -172,13 +179,7 @@ local function DailyPage(props)
 
 	local resetsIn = view.resetsIn - (now - (view.fetchedAt or now))
 	local claimedThrough = if view.claimedToday then view.day else view.day - 1
-	local cards = {
-		Layout = e("UIGridLayout", {
-			CellSize = UDim2.new(1 / 7, -GAP * 6 / 7, 0.5, -GAP / 2),
-			CellPadding = UDim2.fromOffset(GAP, GAP),
-			SortOrder = Enum.SortOrder.LayoutOrder,
-		}),
-	}
+	local cards = {}
 	for day, reward in DailyLogin.REWARDS do
 		local state = "future"
 		if day <= claimedThrough then

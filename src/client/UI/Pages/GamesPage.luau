@@ -1,5 +1,6 @@
 -- the Games window. with no game picked it shows the game menu (a card per game with a short description and a
--- Play button), otherwise the picked game. the window's back button (App) returns to the menu.
+-- Play button), otherwise the picked game. the window's back button (App) returns to the menu. the menu scrolls
+-- vertically: the first FEATURED games side by side on top, the rest in a grid below.
 -- GamesPage.list is the menu, add a game by adding an entry and its page.
 -- props: game (id or nil), onSelect(id), inventory, equipped, pinned, onInspect(uid)
 
@@ -28,12 +29,13 @@ local Mines = require(Shared.Games.Mines)
 
 local e = React.createElement
 
-local FEATURED_HEIGHT = 150
--- the cards under the featured one keep this width and scroll sideways when they don't all fit
-local CARD_WIDTH = 230
+local FEATURED = 2
+local FEATURED_HEIGHT = 170
+local COLUMNS = 3
+local CARD_HEIGHT = 236
 local CARD_GAP = 12
 
--- the first entry is the featured game, shown as a wide card across the top
+-- the first FEATURED entries are the featured games, shown as wide cards across the top
 local GAMES = {
 	{
 		id = "casebattles",
@@ -192,7 +194,7 @@ local function Card(props)
 			}),
 			Description = e(Text, {
 				Position = UDim2.fromOffset(0, 42),
-				Size = if featured then UDim2.new(0.58, 0, 0, 56) else UDim2.new(1, 0, 0, 56),
+				Size = if featured then UDim2.new(1, 0, 0, 50) else UDim2.new(1, 0, 0, 56),
 				Text = entry.description,
 				TextSize = 14,
 				TextColor3 = Theme.colors.textDim,
@@ -200,15 +202,17 @@ local function Card(props)
 				TextTruncate = Enum.TextTruncate.None,
 				TextYAlignment = Enum.TextYAlignment.Top,
 			}),
+			-- featured cards: facts bottom left, beside the Play button
 			Facts = e("Frame", {
-				Position = if featured then UDim2.new(0.6, 0, 0, 44) else UDim2.fromOffset(0, 104),
-				Size = if featured then UDim2.new(0.4, -240, 0, 60) else UDim2.new(1, 0, 0, 44),
+				AnchorPoint = if featured then Vector2.new(0, 1) else Vector2.zero,
+				Position = if featured then UDim2.fromScale(0, 1) else UDim2.fromOffset(0, 104),
+				Size = if featured then UDim2.new(1, -196, 0, 40) else UDim2.new(1, 0, 0, 44),
 				BackgroundTransparency = 1,
 			}, facts),
 			Play = e(Button, {
 				anchorPoint = if featured then Vector2.new(1, 1) else Vector2.new(0, 1),
 				position = if featured then UDim2.fromScale(1, 1) else UDim2.fromScale(0, 1),
-				size = if featured then UDim2.fromOffset(220, 56) else UDim2.new(1, 0, 0, 44),
+				size = if featured then UDim2.fromOffset(180, 48) else UDim2.new(1, 0, 0, 44),
 				text = "Play",
 				textSize = 20,
 				color = entry.color:Lerp(Theme.colors.panel, 0.25),
@@ -239,59 +243,63 @@ local function GamesPage(props)
 		})
 	end
 
-	local cards = {
+	local featured = {
 		Layout = e("UIListLayout", {
 			FillDirection = Enum.FillDirection.Horizontal,
 			Padding = UDim.new(0, CARD_GAP),
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
-		Padding = e("UIPadding", { PaddingBottom = UDim.new(0, 10) }),
 	}
-	for index = 2, #GAMES do
-		local entry = GAMES[index]
-		cards[entry.id] = e("Frame", {
-			LayoutOrder = index,
-			Size = UDim2.new(0, CARD_WIDTH, 1, 0),
-			BackgroundTransparency = 1,
-		}, {
-			Card = e(Card, {
-				game = entry,
-				onSelect = props.onSelect,
-			}),
-		})
+	local cards = {
+		Layout = e("UIGridLayout", {
+			CellSize = UDim2.new(1 / COLUMNS, -CARD_GAP * (COLUMNS - 1) / COLUMNS, 0, CARD_HEIGHT),
+			CellPadding = UDim2.fromOffset(CARD_GAP, CARD_GAP),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		}),
+	}
+	for index, entry in GAMES do
+		if index <= FEATURED then
+			featured[entry.id] = e("Frame", {
+				LayoutOrder = index,
+				Size = UDim2.new(1 / FEATURED, -CARD_GAP * (FEATURED - 1) / FEATURED, 1, 0),
+				BackgroundTransparency = 1,
+			}, {
+				Card = e(Card, { game = entry, featured = true, onSelect = props.onSelect }),
+			})
+		else
+			cards[entry.id] = e(Card, { layoutOrder = index, game = entry, onSelect = props.onSelect })
+		end
 	end
 
-	return e("Frame", {
+	return e("ScrollingFrame", {
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ScrollingDirection = Enum.ScrollingDirection.Y,
+		ScrollBarThickness = 5,
+		ScrollBarImageColor3 = Theme.colors.stroke,
 	}, {
+		Layout = e("UIListLayout", { Padding = UDim.new(0, CARD_GAP), SortOrder = Enum.SortOrder.LayoutOrder }),
+		Padding = e("UIPadding", { PaddingRight = UDim.new(0, 10), PaddingBottom = UDim.new(0, 8) }),
 		Caption = e(Text, {
+			LayoutOrder = 1,
 			Size = UDim2.new(1, 0, 0, 18),
 			Text = "Pick a game. Item games never use equipped or pinned items.",
 			TextSize = 13,
 			TextColor3 = Theme.colors.textDim,
 		}),
 		Featured = e("Frame", {
-			Position = UDim2.fromOffset(0, 30),
+			LayoutOrder = 2,
 			Size = UDim2.new(1, 0, 0, FEATURED_HEIGHT),
 			BackgroundTransparency = 1,
-		}, {
-			Card = e(Card, {
-				game = GAMES[1],
-				featured = true,
-				onSelect = props.onSelect,
-			}),
-		}),
-		Cards = e("ScrollingFrame", {
-			Position = UDim2.fromOffset(0, 30 + FEATURED_HEIGHT + 12),
-			Size = UDim2.new(1, 0, 1, -(30 + FEATURED_HEIGHT + 12)),
+		}, featured),
+		Cards = e("Frame", {
+			LayoutOrder = 3,
+			Size = UDim2.fromScale(1, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
 			BackgroundTransparency = 1,
-			BorderSizePixel = 0,
-			CanvasSize = UDim2.new(),
-			AutomaticCanvasSize = Enum.AutomaticSize.X,
-			ScrollingDirection = Enum.ScrollingDirection.X,
-			ScrollBarThickness = 5,
-			ScrollBarImageColor3 = Theme.colors.stroke,
 		}, cards),
 	})
 end
