@@ -7,7 +7,12 @@
 -- CaseRegistry.seriesFor(caseId, assetId) -> series id the item counts as when unboxed from that case,
 -- CaseRegistry.itemSeries(item) -> series id of an item instance (its saved series, or worked out for old items),
 -- CaseRegistry.roll(caseId, rng, luck?) -> assetId (server uses its own Random, client only for reel filler),
--- CaseRegistry.isSpecial(assetId) -> boolean (true for items hidden as "rare special items" in cases)
+-- CaseRegistry.isSpecial(assetId) -> boolean (true for "rare special items": worth specialMinValue+, or a season
+-- case's own special like the Alpha reward)
+-- season cases (def.season) are different: their special pool is only their own specials (def.specials), items worth
+-- specialMinValue+ are left out of them entirely so nothing outranks the season's item, and the specials are shown
+-- (revealSpecials) instead of hidden, listed first and used as the case icon.
+-- def.tierLimits = { [tierId] = n } keeps only the n cheapest items of that rarity in a case.
 -- CaseRegistry.isAvailable(case) -> boolean (false for a season case outside its season; get() still finds it)
 -- CaseRegistry.chanceOf(caseId?, assetId) -> number? (base odds of that item in that case, nil if not in it)
 -- CaseRegistry.rollTier(caseId, tierId, rng) -> assetId? (odds weighted roll among the case's items of that tier,
@@ -52,6 +57,7 @@ export type Case = {
 	iconAssetId: number,
 	image: string?,
 	houseEdge: number,
+	revealSpecials: boolean,
 	totalWeight: number,
 	specialChance: number,
 	specialCount: number,
@@ -83,6 +89,40 @@ for assetId in ItemRegistry.all() do
 	end
 end
 table.sort(specialPool)
+
+-- items forced into a case's special pool (season items), so isSpecial knows them whatever their value
+local forcedSpecials: { [number]: boolean } = {}
+
+-- drops all but the cheapest limit items of each limited rarity
+local function applyTierLimits(assetIds: { number }, limits: { [string]: number }?): { number }
+	if not limits then
+		return assetIds
+	end
+	local byTier = {}
+	for _, assetId in assetIds do
+		local tierId = ItemRegistry.tier(assetId).id
+		if limits[tierId] then
+			byTier[tierId] = byTier[tierId] or {}
+			table.insert(byTier[tierId], assetId)
+		end
+	end
+	local dropped = {}
+	for tierId, list in byTier do
+		table.sort(list, function(a, b)
+			return ItemRegistry.baseValue(a) < ItemRegistry.baseValue(b)
+		end)
+		for i = limits[tierId] + 1, #list do
+			dropped[list[i]] = true
+		end
+	end
+	local kept = {}
+	for _, assetId in assetIds do
+		if not dropped[assetId] then
+			table.insert(kept, assetId)
+		end
+	end
+	return kept
+end
 
 local function gather(def): ({ number }, { [number]: string })
 	local assetIds = {}
@@ -118,6 +158,18 @@ local function gather(def): ({ number }, { [number]: string })
 		end
 	end
 
+	assetIds = applyTierLimits(assetIds, def.tierLimits)
+	-- a season case's only specials are its own, so it never gets value specials
+	if def.season ~= nil then
+		local kept = {}
+		for _, assetId in assetIds do
+			if ItemRegistry.baseValue(assetId) < CaseData.specialMinValue then
+				table.insert(kept, assetId)
+			end
+		end
+		return kept, seriesOf
+	end
+
 	local hasSpecial = false
 	for _, assetId in assetIds do
 		if ItemRegistry.baseValue(assetId) >= CaseData.specialMinValue then
@@ -148,6 +200,7 @@ local function build(def, order: number): Case?
 	for _, assetId in def.specials or {} do
 		assert(ItemRegistry.get(assetId), `case "{def.id}" has an unknown special item {assetId}`)
 		forced[assetId] = true
+		forcedSpecials[assetId] = true
 		if not table.find(assetIds, assetId) then
 			table.insert(assetIds, assetId)
 		end
@@ -187,27 +240,44 @@ local function build(def, order: number): Case?
 		normalize(special, specialChance)
 	end
 
+	local revealSpecials = def.season ~= nil and #special > 0
 	local items: { CaseItem } = table.clone(normal)
 	table.move(special, 1, #special, #items + 1, items)
 	table.sort(items, function(a, b)
+		-- a season case lists its specials first (they are its top prize, whatever their value)
+		if revealSpecials and a.special ~= b.special then
+			return a.special
+		end
 		if a.value == b.value then
 			return a.assetId < b.assetId
 		end
 		return a.value > b.value
 	end)
 
-	local low, high = math.log(items[#items].value), math.log(items[1].value)
+	-- rarity (0 to 1, used by luck) spans the regular items by value; specials are always 1. values are floored at 1
+	-- since a season item can be worth 0
+	local low, high = math.huge, -math.huge
+	for _, entry in normal do
+		local v = math.log(math.max(entry.value, 1))
+		low, high = math.min(low, v), math.max(high, v)
+	end
 	local expectedBase = 0
 	for _, item in items do
-		item.rarity = if high > low then (math.log(item.value) - low) / (high - low) else 0
+		if item.special then
+			item.rarity = 1
+		else
+			item.rarity = if high > low then (math.log(math.max(item.value, 1)) - low) / (high - low) else 0
+		end
 		expectedBase += item.chance * item.value
 	end
 
 	local iconAssetId = items[1].assetId
-	for _, item in items do
-		if not item.special then
-			iconAssetId = item.assetId
-			break
+	if not revealSpecials then
+		for _, item in items do
+			if not item.special then
+				iconAssetId = item.assetId
+				break
+			end
 		end
 	end
 
@@ -226,6 +296,7 @@ local function build(def, order: number): Case?
 		color = def.color or Color3.new(1, 1, 1),
 		price = roundUpNice(expectedValue * (1 + (def.houseEdge or Config.HouseEdge))),
 		houseEdge = def.houseEdge or Config.HouseEdge,
+		revealSpecials = revealSpecials,
 		expectedValue = expectedValue,
 		items = items,
 		iconAssetId = iconAssetId,
@@ -320,7 +391,7 @@ function CaseRegistry.itemSeries(item: { assetId: number, caseId: string?, serie
 end
 
 function CaseRegistry.isSpecial(assetId: number): boolean
-	return ItemRegistry.baseValue(assetId) >= SPECIAL_MIN_VALUE
+	return forcedSpecials[assetId] == true or ItemRegistry.baseValue(assetId) >= SPECIAL_MIN_VALUE
 end
 
 function CaseRegistry.chanceOf(caseId: string?, assetId: number): number?

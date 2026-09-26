@@ -34,11 +34,13 @@ local function CaseDetails(props)
 		Preloader.preloadCase(props.caseId)
 	end, { props.caseId })
 
+	-- a season case shows its specials (its top prize) as regular tiles, listed first; other cases hide them behind the
+	-- rare special item tile
 	local regular = React.useMemo(function()
 		local list = {}
 		if case then
 			for _, item in case.items do
-				if not item.special then
+				if not item.special or case.revealSpecials then
 					table.insert(list, item)
 				end
 			end
@@ -62,7 +64,7 @@ local function CaseDetails(props)
 	local last = math.min(#regular, currentPage * PAGE_SIZE)
 
 	local tiles = {}
-	if case.specialCount > 0 then
+	if case.specialCount > 0 and not case.revealSpecials then
 		tiles.Special = e(SpecialTile, {
 			layoutOrder = 0,
 			subtitle = if advanced then Format.odds(case.specialChance) else Format.percent(case.specialChance),
@@ -74,7 +76,7 @@ local function CaseDetails(props)
 		tiles[tostring(item.assetId)] = e(ItemTile, {
 			layoutOrder = index,
 			assetId = item.assetId,
-			subtitle = Format.cash(item.value),
+			subtitle = if item.special and item.value <= 0 then "Season prize" else Format.cash(item.value),
 			tagText = if advanced then Format.odds(item.chance) else Format.percent(item.chance),
 			tagColor = tier.color,
 		})
@@ -86,7 +88,9 @@ local function CaseDetails(props)
 	}, {
 		Caption = e(Text, {
 			Size = UDim2.new(1, -340, 0, HEADER),
-			Text = `{seriesText}  ·  {#regular} items + ★ rare special items`,
+			Text = if case.revealSpecials
+				then `{seriesText}  ·  {#regular} items, top prize first`
+				else `{seriesText}  ·  {#regular} items + ★ rare special items`,
 			TextSize = 13,
 			TextColor3 = Theme.colors.textDim,
 		}),

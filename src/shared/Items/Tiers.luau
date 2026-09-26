@@ -3,7 +3,8 @@
 -- gradient (optional) is an animated shimmer the ui puts on the tier's bars and labels.
 -- custom rarities (Tiers.custom) are never picked from value: only custom items that name one with their rarity
 -- field (see Items/CustomItems) have them. they sit outside the value ladder, so they are left out of case odds,
--- auto-sell and the admin rarity override.
+-- auto-sell and the admin rarity override. "season1" to "season5" ("Season 1", ...) are for each season's top
+-- item from its season case (the Alpha reward keeps "alpha"); add a color to SEASON_COLORS for more seasons.
 -- api: Tiers.list (value tiers, ordered low to high), Tiers.custom (custom rarities), Tiers.fromValue(value) -> tier,
 -- Tiers.get(id) -> tier (value or custom)
 
@@ -72,6 +73,32 @@ local CUSTOM: { Tier } = {
 		}),
 	},
 }
+
+-- one custom rarity per season for its season case's top item: "season1" = "Season 1", ...
+local SEASON_COLORS = {
+	Color3.fromRGB(90, 200, 255),
+	Color3.fromRGB(255, 110, 170),
+	Color3.fromRGB(120, 235, 140),
+	Color3.fromRGB(255, 150, 60),
+	Color3.fromRGB(190, 130, 255),
+}
+for season, color in SEASON_COLORS do
+	table.insert(CUSTOM, {
+		id = `season{season}`,
+		name = `Season {season}`,
+		minValue = math.huge,
+		color = color,
+		rank = 0,
+		custom = true,
+		gradient = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, color),
+			ColorSequenceKeypoint.new(0.45, color),
+			ColorSequenceKeypoint.new(0.5, color:Lerp(Color3.new(1, 1, 1), 0.7)),
+			ColorSequenceKeypoint.new(0.55, color),
+			ColorSequenceKeypoint.new(1, color),
+		}),
+	})
+end
 
 local byId = {}
 for _, tier in LIST do
