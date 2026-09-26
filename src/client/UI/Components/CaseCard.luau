@@ -5,10 +5,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local React = require(ReplicatedStorage.Packages.React)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
-local ItemRegistry = require(ReplicatedStorage.Shared.Items.ItemRegistry)
 local Tiers = require(ReplicatedStorage.Shared.Items.Tiers)
 local Theme = require(script.Parent.Parent.Theme)
 local Text = require(script.Parent.Text)
+local CaseIcon = require(script.Parent.CaseIcon)
 local Sfx = require(script.Parent.Parent.Parent.Controllers.Sfx)
 
 local e = React.createElement
@@ -64,13 +64,12 @@ local function CaseCard(props)
 				Transparency = if hovered then GLOW_HOVER else GLOW_IDLE,
 			}),
 		}),
-		Icon = e("ImageLabel", {
-			AnchorPoint = Vector2.new(0.5, 0),
-			Position = UDim2.new(0.5, 0, 0, if hovered then 12 else 16),
-			Size = UDim2.fromOffset(112, 112),
-			BackgroundTransparency = 1,
-			Image = ItemRegistry.thumbnail(case.iconAssetId, 150),
-			ZIndex = 2,
+		Icon = e(CaseIcon, {
+			case = case,
+			anchorPoint = Vector2.new(0.5, 0),
+			position = UDim2.new(0.5, 0, 0, if hovered then 12 else 16),
+			size = UDim2.fromOffset(112, 112),
+			zIndex = 2,
 		}),
 		Name = e(Text, {
 			AnchorPoint = Vector2.new(0.5, 0),

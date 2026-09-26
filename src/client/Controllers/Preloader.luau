@@ -2,6 +2,7 @@ local ContentProvider = game:GetService("ContentProvider")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local CaseData = require(Shared.Cases.CaseData)
 local CaseRegistry = require(Shared.Cases.CaseRegistry)
 local ItemRegistry = require(Shared.Items.ItemRegistry)
 
@@ -56,8 +57,11 @@ end
 
 function Preloader.start()
 	task.spawn(function()
-		local contents = {}
+		local contents = { `rbxassetid://{CaseData.caseImage}` }
 		for _, case in CaseRegistry.list() do
+			if case.image then
+				table.insert(contents, case.image)
+			end
 			table.insert(contents, ItemRegistry.thumbnail(case.iconAssetId, 150))
 			table.insert(contents, ItemRegistry.thumbnail(case.iconAssetId, 420))
 		end
