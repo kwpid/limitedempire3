@@ -6,8 +6,9 @@
 --
 -- stacking: an item can have up to MAX_TRAITS traits. after the first trait lands, every other trait rolls
 -- SECOND_TRAIT_ODDS of its base chance (luck ignored, rarest first) for a second one, so doubles are rarer than
--- both odds together (about 1 in 6,000 unboxes get two, shiny + frozen ~1 in 15,000, rainbow + void ~1 in 60 million). stacked traits add instead of multiplying: the
--- best trait counts in full and every other one adds STACK_SHARE of its bonus (glitched + void = 40 + 7 = x47).
+-- both odds together (about 1 in 6,000 unboxes get two, shiny + frozen ~1 in 15,000, rainbow + void ~1 in 60
+-- million). stacked traits add instead of multiplying: the best trait counts in full and every other one adds
+-- STACK_SHARE of its bonus (glitched + void = 40 + 7 = x47).
 -- Traits.rollAll(rng, luck?) -> { trait id } best first (0 to MAX_TRAITS), Traits.of(item) -> { trait id } best
 -- first, Traits.combinedMultiplier(ids) -> number, Traits.label(ids) -> "Void + Glitched" or nil,
 -- Traits.stackBonus(id) -> what a trait adds when it is not the best one,
