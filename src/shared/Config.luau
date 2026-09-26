@@ -1,5 +1,5 @@
 -- global tuning values shared by server and client, read with require(ReplicatedStorage.Shared.Config).
--- case price = expected value * (1 + HouseEdge). SellRate is the fraction of value paid out on sell.
+-- case price = expected value * (1 + HouseEdge), a case in CaseData can set its own (the starter cases do). SellRate is the fraction of value paid out on sell.
 -- any unbox worth AnnounceValue or more gets announced to the whole server.
 -- selling always asks for a second click. items worth SellHoldValue or more also make the player wait
 -- SellHoldSeconds before the confirm click works.

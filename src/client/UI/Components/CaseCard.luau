@@ -1,10 +1,11 @@
 -- a case on the cases page: the case color glowing up from the bottom, its icon, name, price and the best item
--- you can see in it. props: case, cash, layoutOrder, onSelect(caseId)
+-- you can see in it, plus a Starter tag on cases with a lower house edge. props: case, cash, layoutOrder, onSelect(caseId)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local React = require(ReplicatedStorage.Packages.React)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
+local Config = require(ReplicatedStorage.Shared.Config)
 local Tiers = require(ReplicatedStorage.Shared.Items.Tiers)
 local Theme = require(script.Parent.Parent.Theme)
 local Text = require(script.Parent.Text)
@@ -82,6 +83,26 @@ local function CaseCard(props)
 			weight = Enum.FontWeight.Bold,
 			ZIndex = 2,
 		}),
+		Starter = case.houseEdge < Config.HouseEdge and e("Frame", {
+			Position = UDim2.fromOffset(8, 8),
+			Size = UDim2.fromOffset(0, 20),
+			AutomaticSize = Enum.AutomaticSize.X,
+			BackgroundColor3 = Theme.colors.good,
+			BorderSizePixel = 0,
+			ZIndex = 3,
+		}, {
+			Corner = e("UICorner", { CornerRadius = Theme.radius }),
+			Padding = e("UIPadding", { PaddingLeft = UDim.new(0, 7), PaddingRight = UDim.new(0, 7) }),
+			Label = e(Text, {
+				Size = UDim2.fromScale(0, 1),
+				AutomaticSize = Enum.AutomaticSize.X,
+				Text = "Starter",
+				TextSize = 12,
+				TextTruncate = Enum.TextTruncate.None,
+				display = true,
+				ZIndex = 4,
+			}),
+		}) or nil,
 		Best = e(Text, {
 			AnchorPoint = Vector2.new(0.5, 0),
 			Position = UDim2.new(0.5, 0, 1, -52),
