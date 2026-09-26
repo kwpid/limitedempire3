@@ -20,6 +20,10 @@ local FUNCTIONS = {
 	"SetSetting",
 	"SetCosmetic",
 	"SetPinned",
+	"Upgrade",
+	"TradeUp",
+	"HiLoStart",
+	"HiLoGuess",
 }
 
 local FOLDER_NAME = "Remotes"

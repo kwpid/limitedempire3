@@ -17,6 +17,10 @@ PlayerStats.list = {
 	{ id = "sold", label = "Items sold", format = "count" },
 	{ id = "soldValue", label = "Earned from selling", format = "cash" },
 	{ id = "autoSold", label = "Items auto-sold", format = "count" },
+	{ id = "upgrades", label = "Upgrades tried", format = "count" },
+	{ id = "upgradesWon", label = "Upgrades won", format = "count" },
+	{ id = "tradeUps", label = "Trade-ups", format = "count" },
+	{ id = "hiloBest", label = "Best Higher or Lower streak", format = "count" },
 }
 
 function PlayerStats.defaults(): { [string]: number }

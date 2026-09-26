@@ -24,6 +24,7 @@ function DataConfig.template()
 		inventory = {},
 		equipped = {},
 		pinned = {},
+		daily = { day = 0, hiloEarned = 0 },
 		settings = {},
 		cosmetics = {
 			title = { equipped = "none", unlocked = {} },

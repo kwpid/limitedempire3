@@ -32,6 +32,22 @@ function Actions.setPinned(uid: string, pinned: boolean): Types.Result<nil>
 	return invoke(Net.functions.SetPinned, uid, pinned)
 end
 
+function Actions.upgrade(uids: { string }, targetAssetId: number): Types.Result<any>
+	return invoke(Net.functions.Upgrade, uids, targetAssetId)
+end
+
+function Actions.tradeUp(uids: { string }): Types.Result<Types.ItemInstance>
+	return invoke(Net.functions.TradeUp, uids)
+end
+
+function Actions.hiloStart(): Types.Result<any>
+	return invoke(Net.functions.HiLoStart)
+end
+
+function Actions.hiloGuess(choice: string): Types.Result<any>
+	return invoke(Net.functions.HiLoGuess, choice)
+end
+
 function Actions.setCosmetic(kind: string, id: string): Types.Result<nil>
 	return invoke(Net.functions.SetCosmetic, kind, id)
 end

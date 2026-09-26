@@ -29,6 +29,7 @@
 --   the saved profile when they are offline ("offline", saved with ProfileStore SetAsync) and refuse to edit when
 --   the player is in another server ("elsewhere", that server's session would overwrite the change).
 --   where can also be "none" (never played) or "error" (datastore failed).
+--   PlayerDataService:GetDaily(player, today) -> the player's daily counters (mutable, reset when the day changes)
 --   PlayerDataService:Reset(player) (wipes the player back to the template, used by the admin panel)
 --   PlayerDataService.Loaded (signal: player), PlayerDataService.EquippedChanged (signal: player, uids),
 --   PlayerDataService.InventoryChanged (signal: player) fires after items are added, removed or wiped
@@ -52,6 +53,7 @@ type SavedData = {
 	inventory: { [string]: ItemInstance },
 	equipped: { string },
 	pinned: { string },
+	daily: { day: number, hiloEarned: number },
 	settings: { [string]: any },
 	stats: { [string]: number },
 	cosmetics: { [string]: { equipped: string?, unlocked: { string } } },
@@ -407,6 +409,17 @@ function PlayerDataService:EditUser(userId: number, mutate: (SavedData) -> ()): 
 		return false, `Save failed: {err}`
 	end
 	return true
+end
+
+function PlayerDataService:GetDaily(player: Player, today: number): { day: number, hiloEarned: number }?
+	local data = dataOf(player)
+	if not data then
+		return nil
+	end
+	if not data.daily or data.daily.day ~= today then
+		data.daily = { day = today, hiloEarned = 0 }
+	end
+	return data.daily
 end
 
 function PlayerDataService:Reset(player: Player)

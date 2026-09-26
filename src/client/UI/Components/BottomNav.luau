@@ -59,6 +59,7 @@ local function BottomNav(props)
 	local tabs = {
 		{ id = "cases", text = "Cases" },
 		{ id = "inventory", text = "Inventory" },
+		{ id = "games", text = "Games" },
 		{ id = "settings", text = "Settings" },
 	}
 

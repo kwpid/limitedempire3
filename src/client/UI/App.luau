@@ -22,6 +22,7 @@ local AdminPage = require(script.Parent.Pages.AdminPage)
 local SettingsPage = require(script.Parent.Pages.SettingsPage)
 local CosmeticsPage = require(script.Parent.Pages.CosmeticsPage)
 local DataEditorPage = require(script.Parent.Pages.DataEditorPage)
+local GamesPage = require(script.Parent.Pages.GamesPage)
 local TabBar = require(script.Parent.Components.TabBar)
 local OpeningOverlay = require(script.Parent.Opening.OpeningOverlay)
 local RareReveal = require(script.Parent.Opening.RareReveal)
@@ -449,6 +450,19 @@ local function App(props)
 				}),
 				Titles = inventoryTab == "titles" and e(CosmeticsPage, { kind = "title" }),
 				NameStyles = inventoryTab == "nameStyles" and e(CosmeticsPage, { kind = "nameStyle" }),
+			}),
+		}),
+		GamesWindow = e(Window, {
+			visible = page == "games",
+			title = "Games",
+			subtitle = "upgrader, trade-up and more",
+			onClose = close,
+		}, {
+			Page = page == "games" and e(GamesPage, {
+				inventory = state.inventory,
+				equipped = state.equipped,
+				pinned = state.pinned,
+				onInspect = setInspectUid,
 			}),
 		}),
 		SettingsWindow = e(Window, {
