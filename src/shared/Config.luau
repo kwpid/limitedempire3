@@ -3,8 +3,8 @@
 -- any unbox worth AnnounceValue or more gets announced to the whole server.
 -- selling always asks for a second click. items worth SellHoldValue or more also make the player wait
 -- SellHoldSeconds before the confirm click works.
--- Overhead.ShowOwn shows your own overhead above your character. overheads are a fixed pixel size at any distance,
--- MaxDistance (studs) hides them past that range, math.huge = always visible.
+-- Overhead.ShowOwn shows your own overhead above your character. overheads are WidthStuds wide in the world, so they
+-- shrink as you zoom out like any other object. MaxDistance (studs) hides them past that range, math.huge = always visible.
 
 local Config = {
 	GameName = "Limited Empire",
@@ -29,6 +29,7 @@ local Config = {
 
 	Overhead = {
 		ShowOwn = true,
+		WidthStuds = 6,
 		MaxDistance = math.huge,
 	},
 }
