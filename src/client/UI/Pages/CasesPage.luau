@@ -113,9 +113,19 @@ local function CasesPage(props)
 		}),
 	}
 	for index, group in CaseRegistry.caseSeries() do
+		local shown = table.clone(group)
+		shown.cases = {}
+		for _, case in group.cases do
+			if CaseRegistry.isAvailable(case) then
+				table.insert(shown.cases, case)
+			end
+		end
+		if #shown.cases == 0 then
+			continue
+		end
 		sections[group.id] = e(Section, {
 			layoutOrder = index,
-			group = group,
+			group = shown,
 			cash = props.cash,
 			onSelect = props.onSelect,
 		})

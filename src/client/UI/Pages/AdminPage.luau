@@ -21,7 +21,10 @@ local QUICK_AMOUNTS = { 1_000, 10_000, 100_000, 1_000_000, 100_000_000 }
 local QUICK_LUCK = { 1, 2, 5, 10, 50, 100, 1000 }
 local CONFIRM_WINDOW = 3
 local OVERRIDE_COUNTS = { 1, 5, 25, -1 }
-local PAGE_HEIGHT = 680
+local PAGE_HEIGHT = 870
+local QUICK_XP = { 100, 1_000, 10_000, 100_000 }
+local QUICK_SP = { 100, 1_000, 10_000, -1_000 }
+local SP_MULTIPLIERS = { 0.5, 1, 1.5, 2, 3, 5 }
 
 local function parseAmount(text: string): number?
 	local cleaned = text:gsub("[,%s]", ""):lower()
@@ -129,6 +132,15 @@ local function AdminPage(props)
 	local pending, setPending = React.useState(false)
 	local armed, setArmed = React.useState(nil)
 	local luck = usePlayerAttribute("Luck") or 1
+	local spMultiplier, setSpMultiplier = React.useState(ReplicatedStorage:GetAttribute("SPMultiplier") or 1)
+	React.useEffect(function()
+		local connection = ReplicatedStorage:GetAttributeChangedSignal("SPMultiplier"):Connect(function()
+			setSpMultiplier(ReplicatedStorage:GetAttribute("SPMultiplier") or 1)
+		end)
+		return function()
+			connection:Disconnect()
+		end
+	end, {})
 	local nameStyle = usePlayerAttribute("NameStyle")
 	local armedOverride = usePlayerAttribute("AdminOverride")
 	local pickTraits, setPickTraits = React.useState({})
@@ -377,6 +389,44 @@ local function AdminPage(props)
 		})
 	end
 
+	local function progressRow(order: number, amounts: { number }, action: string, suffix: string)
+		local row = {}
+		for index, amount in amounts do
+			row["Amount" .. index] = e(Chip, {
+				layoutOrder = order * 10 + index,
+				text = `{if amount > 0 then "+" else ""}{Format.short(amount)} {suffix}`,
+				width = 96,
+				disabled = pending,
+				onClick = function()
+					run(action, amount)
+				end,
+			})
+		end
+		return row
+	end
+	local multiplierChips = {}
+	for index, amount in SP_MULTIPLIERS do
+		multiplierChips["Mult" .. index] = e(Chip, {
+			layoutOrder = index,
+			text = `{amount}x`,
+			width = 64,
+			active = spMultiplier == amount,
+			disabled = pending,
+			onClick = function()
+				run("setSpMultiplier", amount)
+			end,
+		})
+	end
+	multiplierChips.Reroll = e(Chip, {
+		layoutOrder = 100,
+		text = "Reroll my quests",
+		width = 140,
+		disabled = pending,
+		onClick = function()
+			confirmThen("resetQuests", "[admin] quests rerolled")
+		end,
+	})
+
 	return e("ScrollingFrame", {
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
@@ -386,6 +436,55 @@ local function AdminPage(props)
 		ScrollBarThickness = 5,
 		ScrollBarImageColor3 = Theme.colors.stroke,
 	}, {
+		Progress = e(Section, {
+			title = "Progress & seasons",
+			position = UDim2.fromOffset(0, 680),
+			size = UDim2.new(1, -10, 0, 176),
+		}, {
+			Status = e(Text, {
+				Position = UDim2.fromOffset(0, 26),
+				Size = UDim2.new(1, 0, 0, 18),
+				Text = `Season Point multiplier: {spMultiplier}x (server wide, resets when the server closes)`,
+				TextSize = 13,
+				TextColor3 = if spMultiplier ~= 1 then Theme.colors.cash else Theme.colors.textDim,
+			}),
+			MultLabel = e(Text, {
+				Position = UDim2.fromOffset(0, 54),
+				Size = UDim2.fromOffset(90, 28),
+				Text = "SP multiplier",
+				TextSize = 12,
+				TextColor3 = Theme.colors.textFaint,
+			}),
+			Mult = e("Frame", {
+				Position = UDim2.fromOffset(100, 54),
+				Size = UDim2.new(1, -100, 0, 28),
+				BackgroundTransparency = 1,
+			}, chipRow(multiplierChips)),
+			XpLabel = e(Text, {
+				Position = UDim2.fromOffset(0, 88),
+				Size = UDim2.fromOffset(90, 28),
+				Text = "Career XP",
+				TextSize = 12,
+				TextColor3 = Theme.colors.textFaint,
+			}),
+			Xp = e("Frame", {
+				Position = UDim2.fromOffset(100, 88),
+				Size = UDim2.new(1, -100, 0, 28),
+				BackgroundTransparency = 1,
+			}, chipRow(progressRow(1, QUICK_XP, "addXp", "XP"))),
+			SpLabel = e(Text, {
+				Position = UDim2.fromOffset(0, 122),
+				Size = UDim2.fromOffset(90, 28),
+				Text = "Season Points",
+				TextSize = 12,
+				TextColor3 = Theme.colors.textFaint,
+			}),
+			Sp = e("Frame", {
+				Position = UDim2.fromOffset(100, 122),
+				Size = UDim2.new(1, -100, 0, 28),
+				BackgroundTransparency = 1,
+			}, chipRow(progressRow(2, QUICK_SP, "addSp", "SP"))),
+		}),
 		NextUnbox = e(Section, {
 			title = "Next unbox (testing)",
 			position = UDim2.fromOffset(0, 404),

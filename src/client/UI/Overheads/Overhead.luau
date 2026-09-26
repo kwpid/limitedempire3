@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local React = require(ReplicatedStorage.Packages.React)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
+local Ranks = require(ReplicatedStorage.Shared.Progress.Ranks)
 local Theme = require(script.Parent.Parent.Theme)
 local Text = require(script.Parent.Parent.Components.Text)
 local NameLabel = require(script.Parent.Parent.Components.NameLabel)
@@ -41,12 +42,32 @@ local function parseTrackers(raw: any): { { assetId: number, count: number } }
 	return list
 end
 
+-- "@name  ·  Lv 12  ·  Gold II" with the level and rank tinted (ProgressService sets the Level and Rank attributes)
+local function usernameLine(player: Player, level: any, rankName: any): string
+	local parts = { "@" .. player.Name }
+	if type(level) == "number" then
+		table.insert(parts, `<font color="#78BEFF">Lv {level}</font>`)
+	end
+	if type(rankName) == "string" then
+		local color = Theme.colors.textDim
+		for _, tier in Ranks.tiers do
+			if string.find(rankName, tier.name, 1, true) == 1 then
+				color = tier.color
+			end
+		end
+		table.insert(parts, `<font color="#{color:ToHex()}">{rankName}</font>`)
+	end
+	return table.concat(parts, "  ·  ")
+end
+
 local function Overhead(props)
 	local player: Player = props.player
 	local styleId = usePlayerAttribute("NameStyle", player)
 	local value = usePlayerValue(player)
 	local trackersRaw = usePlayerAttribute("StatTrackers", player)
 	local titleId = usePlayerAttribute("Title", player)
+	local level = usePlayerAttribute("Level", player)
+	local rankName = usePlayerAttribute("Rank", player)
 	local trackers = React.useMemo(function()
 		return parseTrackers(trackersRaw)
 	end, { trackersRaw })
@@ -161,7 +182,8 @@ local function Overhead(props)
 			Username = e(Text, {
 				LayoutOrder = 3,
 				Size = UDim2.new(1, 0, 0, 14),
-				Text = "@" .. player.Name,
+				Text = usernameLine(player, level, rankName),
+				RichText = true,
 				TextSize = 13,
 				TextColor3 = Theme.colors.textDim,
 				TextStrokeTransparency = 0.6,

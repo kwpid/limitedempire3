@@ -23,6 +23,7 @@ local SettingsPage = require(script.Parent.Pages.SettingsPage)
 local CosmeticsPage = require(script.Parent.Pages.CosmeticsPage)
 local DataEditorPage = require(script.Parent.Pages.DataEditorPage)
 local GamesPage = require(script.Parent.Pages.GamesPage)
+local SeasonPage = require(script.Parent.Pages.SeasonPage)
 local TabBar = require(script.Parent.Components.TabBar)
 local OpeningOverlay = require(script.Parent.Opening.OpeningOverlay)
 local RareReveal = require(script.Parent.Opening.RareReveal)
@@ -388,6 +389,12 @@ local function App(props)
 	end
 
 	local selectedCase = selectedCaseId and CaseRegistry.get(selectedCaseId)
+	local availableCases = 0
+	for _, case in CaseRegistry.list() do
+		if CaseRegistry.isAvailable(case) then
+			availableCases += 1
+		end
+	end
 	local inventoryCount = 0
 	for _ in state.inventory do
 		inventoryCount += 1
@@ -404,7 +411,7 @@ local function App(props)
 			title = selectedCase and selectedCase.name or "Cases",
 			subtitle = if selectedCase
 				then caseSeriesName(selectedCase)
-				else `{#CaseRegistry.caseSeries()} series  ·  {#CaseRegistry.list()} cases`,
+				else `{#CaseRegistry.caseSeries()} series  ·  {availableCases} cases`,
 			onBack = if selectedCase then backToCases else nil,
 			onClose = close,
 		}, {
@@ -481,6 +488,17 @@ local function App(props)
 				equipped = state.equipped,
 				pinned = state.pinned,
 				onInspect = setInspectUid,
+			}),
+		}),
+		SeasonWindow = e(Window, {
+			visible = page == "season",
+			title = "Season",
+			subtitle = "ranks, career and quests",
+			onClose = close,
+		}, {
+			Page = page == "season" and e(SeasonPage, {
+				progress = state.progress,
+				visible = page == "season",
 			}),
 		}),
 		SettingsWindow = e(Window, {

@@ -12,6 +12,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 local Shared = ReplicatedStorage.Shared
 local CaseRegistry = require(Shared.Cases.CaseRegistry)
+local Career = require(Shared.Progress.Career)
 local HigherLower = require(Shared.Games.HigherLower)
 local ItemRegistry = require(Shared.Items.ItemRegistry)
 local Net = require(Shared.Net)
@@ -22,6 +23,7 @@ local Valuation = require(Shared.Modifiers.Valuation)
 local ItemFactory = require(ServerScriptService.Server.Modules.ItemFactory)
 local ItemModelService = require(script.Parent.ItemModelService)
 local PlayerDataService = require(script.Parent.PlayerDataService)
+local ProgressService = require(script.Parent.ProgressService)
 
 local GameService = {}
 
@@ -117,6 +119,10 @@ function GameService:Upgrade(player: Player, uids: any, targetAssetId: any): Typ
 			PlayerDataService:AddItem(player, item)
 		end
 		PlayerDataService:AddStats(player, { upgrades = 1, upgradesWon = if won then 1 else 0 })
+		ProgressService:Track(player, "upgrades", 1, Career.XP.upgrade)
+		if won then
+			ProgressService:Track(player, "upgradeWins", 1, Career.XP.upgradeWin)
+		end
 		return { ok = true, data = { won = won, chance = chance, roll = roll, item = item } }
 	end)
 end
@@ -145,6 +151,7 @@ function GameService:TradeUp(player: Player, uids: any): Types.Result<any>
 		PlayerDataService:RemoveItems(player, uidsOf(items))
 		PlayerDataService:AddItem(player, item)
 		PlayerDataService:AddStats(player, { tradeUps = 1 })
+		ProgressService:Track(player, "tradeUps", 1, Career.XP.tradeUp)
 		return { ok = true, data = item }
 	end)
 end
@@ -216,6 +223,7 @@ function GameService:HiLoGuess(player: Player, choice: any): Types.Result<any>
 	if state and round.streak > (state.stats.hiloBest or 0) then
 		PlayerDataService:SetStats(player, { hiloBest = round.streak })
 	end
+	ProgressService:Track(player, "hiloStreak", round.streak, Career.XP.hiloCorrect)
 
 	round.left = round.right
 	round.right = pickNear(rightValue, round.left)

@@ -14,6 +14,7 @@ local CaseRegistry = require(Shared.Cases.CaseRegistry)
 local Config = require(Shared.Config)
 local Net = require(Shared.Net)
 local Traits = require(Shared.Modifiers.Traits)
+local Seasons = require(Shared.Progress.Seasons)
 local Settings = require(Shared.Settings)
 local Valuation = require(Shared.Modifiers.Valuation)
 local Types = require(Shared.Types)
@@ -22,6 +23,7 @@ local ItemModelService = require(script.Parent.ItemModelService)
 local AdminService = require(script.Parent.AdminService)
 local LuckService = require(script.Parent.LuckService)
 local PlayerDataService = require(script.Parent.PlayerDataService)
+local ProgressService = require(script.Parent.ProgressService)
 local StatTrackerService = require(script.Parent.StatTrackerService)
 
 local CaseService = {}
@@ -71,6 +73,9 @@ function CaseService:Open(player: Player, caseId: any): Types.Result<Types.ItemI
 	if not case then
 		return fail("Invalid case")
 	end
+	if case.season ~= nil and case.season ~= Seasons.current() then
+		return fail("This season case is no longer available")
+	end
 	if busy[player] then
 		return fail("Already opening")
 	end
@@ -119,6 +124,10 @@ function CaseService:Open(player: Player, caseId: any): Types.Result<Types.ItemI
 	end
 	StatTrackerService:CountOpen(player)
 	recordStats(player, case.price, item, value, autoSoldFor)
+	ProgressService:CaseOpened(player, case, item)
+	if autoSoldFor then
+		ProgressService:Track(player, "sold", 1)
+	end
 
 	if shouldAnnounce(item) then
 		for _, other in Players:GetPlayers() do

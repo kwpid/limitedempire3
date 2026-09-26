@@ -11,6 +11,7 @@ local Net = require(Shared.Net)
 local Valuation = require(Shared.Modifiers.Valuation)
 local Types = require(Shared.Types)
 local PlayerDataService = require(script.Parent.PlayerDataService)
+local ProgressService = require(script.Parent.ProgressService)
 
 local InventoryService = {}
 
@@ -38,6 +39,7 @@ function InventoryService:Sell(player: Player, uids: any): Types.Result<number>
 	end
 	if #removed > 0 then
 		PlayerDataService:AddStats(player, { sold = #removed, soldValue = payout })
+		ProgressService:Track(player, "sold", #removed)
 	end
 	return { ok = true, data = payout }
 end

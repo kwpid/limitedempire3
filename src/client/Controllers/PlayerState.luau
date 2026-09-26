@@ -16,6 +16,7 @@ local state: Types.PlayerState = {
 	pinned = {},
 	settings = {},
 	stats = {},
+	progress = {},
 	version = 0,
 }
 local loaded = false
@@ -46,6 +47,8 @@ local function applyDelta(kind: string, payload: any)
 		nextState.settings = payload
 	elseif kind == "stats" then
 		nextState.stats = payload
+	elseif kind == "progress" then
+		nextState.progress = payload
 	elseif kind == "replace" then
 		nextState.cash = payload.cash
 		nextState.inventory = payload.inventory
@@ -53,6 +56,7 @@ local function applyDelta(kind: string, payload: any)
 		nextState.pinned = payload.pinned or {}
 		nextState.settings = payload.settings
 		nextState.stats = payload.stats
+		nextState.progress = payload.progress or {}
 	end
 	state = nextState
 end

@@ -60,6 +60,7 @@ local function BottomNav(props)
 		{ id = "cases", text = "Cases" },
 		{ id = "inventory", text = "Inventory" },
 		{ id = "games", text = "Games" },
+		{ id = "season", text = "Season" },
 		{ id = "settings", text = "Settings" },
 	}
 

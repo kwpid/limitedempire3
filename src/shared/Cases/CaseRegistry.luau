@@ -8,6 +8,7 @@
 -- CaseRegistry.itemSeries(item) -> series id of an item instance (its saved series, or worked out for old items),
 -- CaseRegistry.roll(caseId, rng, luck?) -> assetId (server uses its own Random, client only for reel filler),
 -- CaseRegistry.isSpecial(assetId) -> boolean (true for items hidden as "rare special items" in cases)
+-- CaseRegistry.isAvailable(case) -> boolean (false for a season case outside its season; get() still finds it)
 -- CaseRegistry.chanceOf(caseId?, assetId) -> number? (base odds of that item in that case, nil if not in it)
 -- CaseRegistry.rollTier(caseId, tierId, rng) -> assetId? (odds weighted roll among the case's items of that tier,
 -- nil if the case has none, used by admin test overrides)
@@ -16,6 +17,7 @@
 
 local Shared = script.Parent.Parent
 local Config = require(Shared.Config)
+local Seasons = require(Shared.Progress.Seasons)
 local ItemRegistry = require(Shared.Items.ItemRegistry)
 local Valuation = require(Shared.Modifiers.Valuation)
 local SeriesRegistry = require(Shared.Series.SeriesRegistry)
@@ -55,6 +57,7 @@ export type Case = {
 	seriesOf: { [number]: string },
 	caseSeries: string?,
 	topValue: number,
+	season: number?,
 }
 
 local SPECIAL_MIN_VALUE = CaseData.specialMinValue
@@ -138,17 +141,26 @@ end
 
 local function build(def, order: number): Case?
 	local assetIds, seriesOf = gather(def)
+	-- def.specials: items (custom ones too, like a season case's top item) always in the hidden special pool
+	local forced = {}
+	for _, assetId in def.specials or {} do
+		assert(ItemRegistry.get(assetId), `case "{def.id}" has an unknown special item {assetId}`)
+		forced[assetId] = true
+		if not table.find(assetIds, assetId) then
+			table.insert(assetIds, assetId)
+		end
+	end
 	local curve = CaseData.curve
 	local normal, special = {}, {}
 	for _, assetId in assetIds do
 		local value = ItemRegistry.baseValue(assetId)
 		local entry: CaseItem = {
 			assetId = assetId,
-			weight = value ^ -curve,
+			weight = math.max(value, 1) ^ -curve,
 			chance = 0,
 			value = value,
 			rarity = 0,
-			special = value >= SPECIAL_MIN_VALUE,
+			special = value >= SPECIAL_MIN_VALUE or forced[assetId] == true,
 		}
 		table.insert(if entry.special then special else normal, entry)
 	end
@@ -221,6 +233,7 @@ local function build(def, order: number): Case?
 		seriesOf = seriesOf,
 		caseSeries = nil,
 		topValue = bestVisible.value,
+		season = def.season,
 	}
 end
 
@@ -279,6 +292,10 @@ local CaseRegistry = {}
 
 function CaseRegistry.get(caseId: string): Case?
 	return byId[caseId]
+end
+
+function CaseRegistry.isAvailable(case: Case): boolean
+	return case.season == nil or case.season == Seasons.current()
 end
 
 function CaseRegistry.list(): { Case }

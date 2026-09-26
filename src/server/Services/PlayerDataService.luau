@@ -29,6 +29,8 @@
 --   the saved profile when they are offline ("offline", saved with ProfileStore SetAsync) and refuse to edit when
 --   the player is in another server ("elsewhere", that server's session would overwrite the change).
 --   where can also be "none" (never played) or "error" (datastore failed).
+--   PlayerDataService:GetData(player) -> the raw saved data (mutable, server only, for services that own a part of
+--   it like ProgressService), PlayerDataService:Push(player, kind, payload) sends a delta to that player
 --   PlayerDataService:GetDaily(player, today) -> the player's daily counters (mutable, reset when the day changes)
 --   PlayerDataService:Reset(player) (wipes the player back to the template, used by the admin panel)
 --   PlayerDataService.Loaded (signal: player), PlayerDataService.EquippedChanged (signal: player, uids),
@@ -76,6 +78,11 @@ local function dataOf(player: Player): SavedData?
 	return profile and profile.Data
 end
 
+-- the progress part of the saved data the client shows (career, season, quests, quest metrics)
+local function progressOf(data: any)
+	return { career = data.career, season = data.season, quests = data.quests, metrics = data.metrics }
+end
+
 local function snapshot(player: Player): Types.PlayerState?
 	local data = dataOf(player)
 	if not data then
@@ -88,6 +95,7 @@ local function snapshot(player: Player): Types.PlayerState?
 		pinned = data.pinned,
 		settings = data.settings,
 		stats = data.stats,
+		progress = progressOf(data),
 		version = versions[player] or 0,
 	}
 end
@@ -387,6 +395,7 @@ function PlayerDataService:EditUser(userId: number, mutate: (SavedData) -> ()): 
 			pinned = data.pinned,
 			settings = data.settings,
 			stats = data.stats,
+			progress = progressOf(data),
 		})
 		self.InventoryChanged:Fire(player)
 		self.EquippedChanged:Fire(player, data.equipped)
@@ -411,6 +420,14 @@ function PlayerDataService:EditUser(userId: number, mutate: (SavedData) -> ()): 
 		return false, `Save failed: {err}`
 	end
 	return true
+end
+
+function PlayerDataService:GetData(player: Player): any
+	return dataOf(player)
+end
+
+function PlayerDataService:Push(player: Player, kind: string, payload: any)
+	push(player, kind, payload)
 end
 
 function PlayerDataService:GetDaily(player: Player, today: number): { day: number, hiloEarned: number }?
@@ -444,6 +461,7 @@ function PlayerDataService:Reset(player: Player)
 		pinned = data.pinned,
 		settings = data.settings,
 		stats = data.stats,
+		progress = progressOf(data),
 	})
 	self.InventoryChanged:Fire(player)
 	if hadEquipped then

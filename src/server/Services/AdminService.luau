@@ -19,6 +19,9 @@
 --   "dataLoad" { userId }, "dataAddItems" { userId, assetId, count?, traits?, float?, serial?, tracker? },
 --   "dataEditItem" { userId, uid, traits?, float?, serial?, tracker? }, "dataRemoveItems" { userId, uids },
 --   "dataSetCash" { userId, amount }, "dataCosmetic" { userId, kind, id, unlocked }
+--   progress (ProgressService): "addXp" { amount }, "addSp" { amount } (negative removes, no multiplier),
+--   "resetQuests" (rerolls your daily and weekly quests), "setSpMultiplier" { amount } (server wide event
+--   multiplier for Season Points, until the server shuts down; the default lives in Shared/Progress/Seasons)
 -- to add an action, add a handler to ACTIONS below.
 
 local HttpService = game:GetService("HttpService")
@@ -38,6 +41,7 @@ local CosmeticService = require(script.Parent.CosmeticService)
 local DataEditor = require(ServerScriptService.Server.Modules.DataEditor)
 local SerialService = require(script.Parent.SerialService)
 local PlayerDataService = require(script.Parent.PlayerDataService)
+local ProgressService = require(script.Parent.ProgressService)
 
 local ADMIN_USER_IDS: { [number]: boolean } = {}
 
@@ -213,6 +217,38 @@ local ACTIONS: { [string]: (Player, any) -> Types.Result<any> } = {
 			return { ok = false, err = "Luck must be 1 or higher" }
 		end
 		LuckService:Set(player, luck)
+		return { ok = true }
+	end,
+
+	addXp = function(player, payload)
+		local amount = readAmount(payload)
+		if not amount or amount <= 0 then
+			return { ok = false, err = "Invalid amount" }
+		end
+		ProgressService:AddXp(player, amount)
+		return { ok = true }
+	end,
+
+	addSp = function(player, payload)
+		local amount = readAmount(payload)
+		if not amount then
+			return { ok = false, err = "Invalid amount" }
+		end
+		ProgressService:AddSp(player, amount, false)
+		return { ok = true }
+	end,
+
+	resetQuests = function(player)
+		ProgressService:ResetQuests(player)
+		return { ok = true }
+	end,
+
+	setSpMultiplier = function(_, payload)
+		local amount = type(payload) == "table" and payload.amount
+		if type(amount) ~= "number" or amount ~= amount or amount < 0 or amount > 100 then
+			return { ok = false, err = "Multiplier must be 0 to 100" }
+		end
+		ProgressService:SetSpMultiplier(amount)
 		return { ok = true }
 	end,
 }

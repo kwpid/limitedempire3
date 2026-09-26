@@ -13,6 +13,9 @@
 -- cases (id, name, order, color, series = { series id }, guests = { series theme id }).
 -- caseSeries groups cases into the sections of the cases page (id, name, description, color, cases = { case id }),
 -- in display order. every case must be in exactly one case series.
+-- season cases: set season = n on a case and it can only be opened during that season (Shared/Progress/Seasons,
+-- which also lists each season's case). specials = { assetId } puts items (custom ones too) in its hidden special
+-- pool no matter their value: that is where a season's custom top item goes.
 
 return {
 	curve = 0.9,
@@ -21,6 +24,9 @@ return {
 	guestMinValue = 30_000,
 	guestCount = 6,
 	caseSeries = {
+		{ id = "season", name = "Season Case", color = Color3.fromRGB(255, 196, 46),
+			description = "Only open while its season lasts. Its top prize is a custom item you can't get anywhere else.",
+			cases = { "alpha" } },
 		{ id = "legends", name = "Legends Series", color = Color3.fromRGB(255, 200, 70),
 			description = "The biggest names in the game: Dominus, Sparkle Time and Valkyrie.",
 			cases = { "dominion", "sparkle", "valkyrie" } },
@@ -56,6 +62,9 @@ return {
 			cases = { "vintage", "class2010", "class2011", "class2012", "modern" } },
 	},
 	cases = {
+		-- Season 0. put the season's custom top item's asset id in specials once it is uploaded (and in CustomItems)
+		{ id = "alpha", name = "Alpha Case", color = Color3.fromRGB(255, 196, 46), season = 0,
+			series = { "sparkle", "valhalla" }, guests = { "dominion", "royalty", "gems" }, specials = {} },
 		{ id = "dominion", name = "Dominion Case", color = Color3.fromRGB(190, 40, 55),
 			series = { "dominion", "factions" }, guests = { "royalty", "sparkle" } },
 		{ id = "valkyrie", name = "Valkyrie Case", color = Color3.fromRGB(150, 205, 255),

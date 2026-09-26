@@ -171,7 +171,12 @@ local function Create(props)
 
 	local caseTiles = {}
 	-- most expensive first
-	local sortedCases = table.clone(CaseRegistry.list())
+	local sortedCases = {}
+	for _, case in CaseRegistry.list() do
+		if CaseRegistry.isAvailable(case) then
+			table.insert(sortedCases, case)
+		end
+	end
 	table.sort(sortedCases, function(a, b)
 		return a.price > b.price
 	end)

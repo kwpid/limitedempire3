@@ -34,6 +34,7 @@ export type PlayerState = {
 	pinned: { string }, -- uids the player pinned, sorted right after equipped items in the inventory
 	settings: { [string]: any }, -- only the values the player changed, read through Settings.resolve
 	stats: { [string]: number },
+	progress: any, -- { career, season, quests, metrics }, see ProgressService
 	version: number,
 }
 

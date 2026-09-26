@@ -9,6 +9,7 @@ local EVENTS = {
 	"StateDelta",
 	"Announce",
 	"BattleUpdate",
+	"ProgressEvent",
 }
 
 local FUNCTIONS = {
@@ -27,6 +28,7 @@ local FUNCTIONS = {
 	"HiLoGuess",
 	"BattleAction",
 	"BattleLobbies",
+	"GetLeaderboard",
 }
 
 local FOLDER_NAME = "Remotes"

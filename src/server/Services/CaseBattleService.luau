@@ -18,14 +18,17 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 local Shared = ReplicatedStorage.Shared
 local CaseRegistry = require(Shared.Cases.CaseRegistry)
+local Career = require(Shared.Progress.Career)
 local Config = require(Shared.Config)
 local Net = require(Shared.Net)
+local Seasons = require(Shared.Progress.Seasons)
 local Types = require(Shared.Types)
 local Valuation = require(Shared.Modifiers.Valuation)
 local ItemFactory = require(ServerScriptService.Server.Modules.ItemFactory)
 local ItemModelService = require(script.Parent.ItemModelService)
 local LuckService = require(script.Parent.LuckService)
 local PlayerDataService = require(script.Parent.PlayerDataService)
+local ProgressService = require(script.Parent.ProgressService)
 
 local MAX_ROUNDS = 10
 local MIN_SEATS, MAX_SEATS = 2, 4
@@ -181,6 +184,13 @@ local function run(lobby: Lobby)
 	end
 	for player, index in lobby.players do
 		PlayerDataService:AddStats(player, { battles = 1, battlesWon = if index == winner then 1 else 0 })
+		for round, caseId in lobby.cases do
+			ProgressService:CaseOpened(player, CaseRegistry.get(caseId), rounds[round][index])
+		end
+		ProgressService:Track(player, "battles", 1, Career.XP.battle)
+		if index == winner then
+			ProgressService:Track(player, "battleWins", 1, Career.XP.battleWin)
+		end
 	end
 
 	local result = {
@@ -204,7 +214,7 @@ local function readCases(value: any): ({ string }?, number?)
 	local cost = 0
 	for _, caseId in value do
 		local case = type(caseId) == "string" and CaseRegistry.get(caseId)
-		if not case then
+		if not case or (case.season ~= nil and case.season ~= Seasons.current()) then
 			return nil, nil
 		end
 		cost += case.price
