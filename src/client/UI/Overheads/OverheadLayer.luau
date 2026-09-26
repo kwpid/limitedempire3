@@ -5,6 +5,7 @@ local React = require(ReplicatedStorage.Packages.React)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Overhead = require(script.Parent.Overhead)
 local useSetting = require(script.Parent.Parent.Hooks.useSetting)
+local usePlayerAttribute = require(script.Parent.Parent.Hooks.usePlayerAttribute)
 
 local e = React.createElement
 
@@ -14,6 +15,8 @@ local function OverheadLayer()
 	local heads, setHeads = React.useState({})
 	local showOthers = useSetting("showOverheads")
 	local showOwn = useSetting("showOwnOverhead")
+	-- hidden while the inspect view is open (InspectStage sets this), they draw on top of everything
+	local inspecting = usePlayerAttribute("LE_Inspecting") == true
 
 	React.useLayoutEffect(function()
 		local connections: { [Player]: { RBXScriptConnection } } = {}
@@ -83,7 +86,7 @@ local function OverheadLayer()
 	local children = {}
 	for player, head in heads do
 		local isLocal = player == Players.LocalPlayer
-		if (isLocal and not showOwn) or (not isLocal and not showOthers) then
+		if inspecting or (isLocal and not showOwn) or (not isLocal and not showOthers) then
 			continue
 		end
 		children["Overhead" .. player.UserId] = e(Overhead, {

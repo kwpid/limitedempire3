@@ -3,7 +3,9 @@
 -- does not render particles, lights, fire, sparkles, beams or trails in viewports, so trait effects and an item's
 -- own effects would be missing. a normal blur would blur the item too, so a depth of field effect keeps the item
 -- sharp and blurs the world behind it heavily, with a faint dark backdrop behind the item. the player's own
--- character is hidden while inspecting and the camera is given back on hide.
+-- character is hidden while inspecting and the camera is given back on hide. zooming changes the field of view
+-- instead of the distance, so the item stays in focus and the background stays blurred at any zoom. while it is
+-- showing, the local player gets the "LE_Inspecting" attribute (overheads hide themselves).
 -- api: InspectStage.prepare(item) (starts loading early, e.g. during the case spin), InspectStage.show(item) ->
 -- boolean (yields until the model is ready, false if it could not load), .rotate(dx, dy), .zoom(delta), .hide()
 
@@ -244,7 +246,7 @@ local function place(s: Slot)
 		end
 		return
 	end
-	local distance = s.extent * CAMERA_DISTANCE * s.zoom
+	local distance = s.extent * CAMERA_DISTANCE
 	local center = camera.Position + camera.LookVector * distance
 	if model then
 		local offset = dropOffset(s)
@@ -256,13 +258,16 @@ local function place(s: Slot)
 		)
 	end
 	workspace.CurrentCamera.CFrame = camera
+	workspace.CurrentCamera.FieldOfView = math.clamp(FOV * s.zoom, 12, 70)
 	if focus then
 		focus.FocusDistance = distance
-		focus.InFocusRadius = math.max(s.extent * 0.9, 1)
+		focus.InFocusRadius = math.max(s.extent * 0.7, 1)
 	end
 	local st = getStage()
 	st.light.Position = camera.Position + camera.UpVector * s.extent + camera.RightVector * -s.extent
-	st.backdrop.CFrame = CFrame.lookAt(camera.Position + camera.LookVector * distance * 3, camera.Position)
+	-- close behind the item so as little of the world as possible sits between the item and the backdrop
+	st.backdrop.CFrame =
+		CFrame.lookAt(camera.Position + camera.LookVector * (distance + s.extent * 1.2), camera.Position)
 end
 
 local function release(s: Slot)
@@ -359,6 +364,7 @@ function InspectStage.show(item: Types.ItemInstance): boolean
 	st.placeholder.Visible = true
 	setControlsEnabled(false)
 	takeCamera()
+	Players.LocalPlayer:SetAttribute("LE_Inspecting", true)
 
 	s.connection = RunService.RenderStepped:Connect(function(dt)
 		-- the menu blur would blur the item too, the dark room is the backdrop instead
@@ -423,6 +429,7 @@ function InspectStage.hide()
 	st.placeholder.Visible = false
 	giveCameraBack()
 	setCharacterHidden(false)
+	Players.LocalPlayer:SetAttribute("LE_Inspecting", nil)
 	setControlsEnabled(true)
 	local blur = Lighting:FindFirstChild(FOCUS_BLUR_NAME)
 	if blur and blur:IsA("BlurEffect") then
