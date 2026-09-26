@@ -48,6 +48,11 @@ function Actions.hiloGuess(choice: string): Types.Result<any>
 	return invoke(Net.functions.HiLoGuess, choice)
 end
 
+-- gameId "coinflip" (option "heads" | "tails") or "dice" (option = win chance in whole percent)
+function Actions.cashGame(gameId: string, bet: number, option: any): Types.Result<any>
+	return invoke(Net.functions.CashGame, gameId, bet, option)
+end
+
 function Actions.setCosmetic(kind: string, id: string): Types.Result<nil>
 	return invoke(Net.functions.SetCosmetic, kind, id)
 end

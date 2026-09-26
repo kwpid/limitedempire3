@@ -9,6 +9,7 @@ local React = require(ReplicatedStorage.Packages.React)
 local Shared = ReplicatedStorage.Shared
 local Format = require(Shared.Util.Format)
 local HigherLower = require(Shared.Games.HigherLower)
+local CashGames = require(Shared.Games.CashGames)
 local TradeUp = require(Shared.Games.TradeUp)
 local Upgrader = require(Shared.Games.Upgrader)
 local Theme = require(script.Parent.Parent.Theme)
@@ -19,10 +20,15 @@ local UpgraderPage = require(script.Parent.Games.UpgraderPage)
 local CaseBattlesPage = require(script.Parent.Games.CaseBattlesPage)
 local TradeUpPage = require(script.Parent.Games.TradeUpPage)
 local HigherLowerPage = require(script.Parent.Games.HigherLowerPage)
+local CoinflipPage = require(script.Parent.Games.CoinflipPage)
+local DicePage = require(script.Parent.Games.DicePage)
 
 local e = React.createElement
 
 local FEATURED_HEIGHT = 150
+-- the cards under the featured one keep this width and scroll sideways when they don't all fit
+local CARD_WIDTH = 230
+local CARD_GAP = 12
 
 -- the first entry is the featured game, shown as a wide card across the top
 local GAMES = {
@@ -61,6 +67,25 @@ local GAMES = {
 		facts = { `Up to {Format.cash(HigherLower.DAILY_CAP)} a day`, "Skill based" },
 		page = HigherLowerPage,
 	},
+	{
+		id = "coinflip",
+		name = "Coinflip",
+		color = Color3.fromRGB(245, 160, 60),
+		description = "Heads or tails, double or nothing. Bet as much or as little cash as you like.",
+		facts = { `Pays {string.format("%.2f", CashGames.COINFLIP_MULTIPLIER)}x`, "50/50 odds" },
+		page = CoinflipPage,
+	},
+	{
+		id = "dice",
+		name = "Dice",
+		color = Color3.fromRGB(80, 170, 240),
+		description = "Pick your odds and roll under them. Safe bets pay a little, long shots pay a lot.",
+		facts = {
+			`{CashGames.MIN_CHANCE}% to {CashGames.MAX_CHANCE}% chance`,
+			`Up to {math.floor(CashGames.diceMultiplier(CashGames.MIN_CHANCE))}x`,
+		},
+		page = DicePage,
+	},
 }
 
 local function Card(props)
@@ -86,7 +111,7 @@ local function Card(props)
 	local featured = props.featured == true
 	return e("TextButton", {
 		LayoutOrder = props.layoutOrder,
-		Size = if featured then UDim2.fromScale(1, 1) else nil,
+		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Theme.colors.panel,
 		BorderSizePixel = 0,
 		AutoButtonColor = false,
@@ -195,20 +220,25 @@ local function GamesPage(props)
 		})
 	end
 
-	local others = #GAMES - 1
 	local cards = {
-		Layout = e("UIGridLayout", {
-			CellSize = UDim2.new(1 / others, -10, 1, 0),
-			CellPadding = UDim2.fromOffset(12, 0),
+		Layout = e("UIListLayout", {
+			FillDirection = Enum.FillDirection.Horizontal,
+			Padding = UDim.new(0, CARD_GAP),
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
+		Padding = e("UIPadding", { PaddingBottom = UDim.new(0, 10) }),
 	}
 	for index = 2, #GAMES do
 		local entry = GAMES[index]
-		cards[entry.id] = e(Card, {
-			layoutOrder = index,
-			game = entry,
-			onSelect = props.onSelect,
+		cards[entry.id] = e("Frame", {
+			LayoutOrder = index,
+			Size = UDim2.new(0, CARD_WIDTH, 1, 0),
+			BackgroundTransparency = 1,
+		}, {
+			Card = e(Card, {
+				game = entry,
+				onSelect = props.onSelect,
+			}),
 		})
 	end
 
@@ -218,7 +248,7 @@ local function GamesPage(props)
 	}, {
 		Caption = e(Text, {
 			Size = UDim2.new(1, 0, 0, 18),
-			Text = "Pick a game. Equipped and pinned items are never used.",
+			Text = "Pick a game. Item games never use equipped or pinned items.",
 			TextSize = 13,
 			TextColor3 = Theme.colors.textDim,
 		}),
@@ -233,10 +263,16 @@ local function GamesPage(props)
 				onSelect = props.onSelect,
 			}),
 		}),
-		Cards = e("Frame", {
+		Cards = e("ScrollingFrame", {
 			Position = UDim2.fromOffset(0, 30 + FEATURED_HEIGHT + 12),
 			Size = UDim2.new(1, 0, 1, -(30 + FEATURED_HEIGHT + 12)),
 			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			CanvasSize = UDim2.new(),
+			AutomaticCanvasSize = Enum.AutomaticSize.X,
+			ScrollingDirection = Enum.ScrollingDirection.X,
+			ScrollBarThickness = 5,
+			ScrollBarImageColor3 = Theme.colors.stroke,
 		}, cards),
 	})
 end

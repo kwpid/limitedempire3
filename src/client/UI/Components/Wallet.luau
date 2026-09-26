@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local React = require(ReplicatedStorage.Packages.React)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
+local Income = require(ReplicatedStorage.Shared.Economy.Income)
 local Theme = require(script.Parent.Parent.Theme)
 local Text = require(script.Parent.Text)
 local usePlayerState = require(script.Parent.Parent.Hooks.usePlayerState)
@@ -25,12 +26,17 @@ local DISPLAY_FONT = Theme.display(Enum.FontWeight.Medium)
 local function Wallet(props)
 	local state = usePlayerState()
 	local luck = usePlayerAttribute("Luck")
+	local level = usePlayerAttribute("Level")
+	-- passive income, shown next to the balance label
+	local rateText = `+{Format.short(Income.perMinute(if type(level) == "number" then level else 1))}/MIN`
 	local showLuck = type(luck) == "number" and luck ~= 1
 
 	local amountText = Config.Currency.Symbol .. Format.commas(state.cash)
 	local luckText = if showLuck then string.upper(string.format("Luck %gx", luck)) else ""
 	local amountWidth = useTextWidth(amountText, DISPLAY_FONT, AMOUNT_SIZE)
 	local labelWidth = useTextWidth("BALANCE", DISPLAY_FONT, LABEL_SIZE)
+		+ 10
+		+ useTextWidth(rateText, DISPLAY_FONT, LABEL_SIZE)
 	local luckWidth = useTextWidth(luckText, DISPLAY_FONT, LUCK_SIZE)
 	local cardWidth = math.max(amountWidth, labelWidth, 90) + PAD_X * 2
 
@@ -83,6 +89,16 @@ local function Wallet(props)
 				Text = "Balance",
 				TextSize = LABEL_SIZE,
 				TextColor3 = Theme.colors.textFaint,
+				TextTruncate = Enum.TextTruncate.None,
+				display = true,
+			}),
+			Rate = e(Text, {
+				Position = UDim2.fromOffset(PAD_X, 8),
+				Size = UDim2.new(1, -PAD_X * 2, 0, 14),
+				Text = rateText,
+				TextSize = LABEL_SIZE,
+				TextColor3 = Color3.fromRGB(130, 210, 120),
+				TextXAlignment = Enum.TextXAlignment.Right,
 				TextTruncate = Enum.TextTruncate.None,
 				display = true,
 			}),

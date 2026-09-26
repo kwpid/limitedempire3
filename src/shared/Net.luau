@@ -31,6 +31,7 @@ local FUNCTIONS = {
 	"BattleLobbies",
 	"GetLeaderboard",
 	"TradeAction",
+	"CashGame",
 }
 
 local FOLDER_NAME = "Remotes"
