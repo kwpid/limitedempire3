@@ -1,7 +1,9 @@
--- the 3d item preview used by the inspect view and the unbox reveal. the item is shown in the real world, in a
--- small dark room far away from the map that only this player can see, with their camera pointed at it. a
--- ViewportFrame would be simpler, but Roblox does not render particles, lights, fire, sparkles, beams or trails in
--- viewports, so trait effects and an item's own effects would be missing. the camera is given back on hide.
+-- the 3d item preview used by the inspect view and the unbox reveal. the item is a real (local only) model floating
+-- in front of the player's camera, where it was when inspect opened. a ViewportFrame would be simpler, but Roblox
+-- does not render particles, lights, fire, sparkles, beams or trails in viewports, so trait effects and an item's
+-- own effects would be missing. a normal blur would blur the item too, so a depth of field effect keeps the item
+-- sharp and blurs the world behind it heavily, with a faint dark backdrop behind the item. the player's own
+-- character is hidden while inspecting and the camera is given back on hide.
 -- api: InspectStage.prepare(item) (starts loading early, e.g. during the case spin), InspectStage.show(item) ->
 -- boolean (yields until the model is ready, false if it could not load), .rotate(dx, dy), .zoom(delta), .hide()
 
@@ -25,9 +27,9 @@ local WEAR_SIZE = 512
 local FOV = 32
 local AUTO_SPIN = 0.35
 local MIN_ZOOM, MAX_ZOOM = 0.55, 1.8
-local ROOM_ORIGIN = Vector3.new(6000, 9000, 6000)
-local ROOM_SIZE = 300
-local ROOM_COLOR = Color3.fromRGB(16, 18, 22)
+-- where the model waits (out of sight) while it loads during the case spin
+local PARK_POSITION = Vector3.new(6000, 9000, 6000)
+local CAMERA_DISTANCE = 2.6
 local FOCUS_BLUR_NAME = "LE_FocusBlur"
 local DROP_TIME = 0.55
 local DROP_HEIGHT = 1.3
@@ -52,6 +54,8 @@ type Stage = {
 	gui: ScreenGui,
 	placeholder: ImageLabel,
 	room: Model,
+	light: BasePart,
+	backdrop: BasePart,
 }
 
 type SavedCamera = {
@@ -64,55 +68,58 @@ local stage: Stage? = nil
 local slot: Slot? = nil
 local savedCamera: SavedCamera? = nil
 
--- six thin walls around ROOM_ORIGIN (looked at from inside) plus lights for the item
-local function buildRoom(): Model
+local view: CFrame? = nil
+local focus: DepthOfFieldEffect? = nil
+
+local function stagePart(name: string): Part
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.CastShadow = false
+	part.Position = PARK_POSITION
+	return part
+end
+
+-- a local only model holding the item, a light for it and the dim backdrop behind it
+local function buildRoom(): (Model, BasePart, BasePart)
 	local room = Instance.new("Model")
 	room.Name = "LE_InspectRoom"
-	local half = ROOM_SIZE / 2
-	for index, normal in { Vector3.xAxis, -Vector3.xAxis, Vector3.yAxis, -Vector3.yAxis, Vector3.zAxis, -Vector3.zAxis } do
-		local wall = Instance.new("Part")
-		wall.Name = "Wall" .. index
-		wall.Anchored = true
-		wall.CanCollide = false
-		wall.CanQuery = false
-		wall.CanTouch = false
-		wall.CastShadow = false
-		wall.Material = Enum.Material.SmoothPlastic
-		wall.Color = ROOM_COLOR
-		local size = Vector3.new(ROOM_SIZE, ROOM_SIZE, ROOM_SIZE)
-		size -= Vector3.new(math.abs(normal.X), math.abs(normal.Y), math.abs(normal.Z)) * (ROOM_SIZE - 1)
-		wall.Size = size
-		wall.Position = ROOM_ORIGIN + normal * half
-		wall.Parent = room
-	end
 
-	local lightPart = Instance.new("Part")
-	lightPart.Name = "Lights"
-	lightPart.Anchored = true
-	lightPart.CanCollide = false
-	lightPart.CanQuery = false
-	lightPart.CanTouch = false
-	lightPart.Transparency = 1
-	lightPart.Size = Vector3.one
-	lightPart.Position = ROOM_ORIGIN + Vector3.new(-8, 10, 12)
-	lightPart.Parent = room
+	local light = stagePart("Light")
+	light.Transparency = 1
+	light.Size = Vector3.one
 	local key = Instance.new("PointLight")
 	key.Color = Color3.fromRGB(255, 246, 232)
-	key.Brightness = 2.2
-	key.Range = 40
+	key.Brightness = 1.6
+	key.Range = 24
 	key.Shadows = false
-	key.Parent = lightPart
+	key.Parent = light
+	light.Parent = room
 
-	local fillPart = lightPart:Clone()
-	fillPart.Name = "Fill"
-	fillPart.Position = ROOM_ORIGIN + Vector3.new(10, 2, 8)
-	local fill = fillPart:FindFirstChildOfClass("PointLight") :: PointLight
-	fill.Color = Color3.fromRGB(200, 215, 255)
-	fill.Brightness = 1.1
-	fillPart.Parent = room
+	local backdrop = stagePart("Backdrop")
+	backdrop.Size = Vector3.new(4000, 4000, 0.2)
+	backdrop.Color = Color3.fromRGB(8, 9, 12)
+	backdrop.Material = Enum.Material.SmoothPlastic
+	backdrop.Transparency = 1
+	backdrop.Parent = room
 
 	room.Parent = workspace
-	return room
+	return room, light, backdrop
+end
+
+local function setCharacterHidden(hidden: boolean)
+	local character = Players.LocalPlayer.Character
+	if not character then
+		return
+	end
+	for _, descendant in character:GetDescendants() do
+		if descendant:IsA("BasePart") or descendant:IsA("Decal") then
+			descendant.LocalTransparencyModifier = if hidden then 1 else 0
+		end
+	end
 end
 
 local function getStage(): Stage
@@ -142,7 +149,8 @@ local function getStage(): Stage
 	placeholder.ZIndex = 2
 	placeholder.Parent = gui
 
-	stage = { gui = gui, placeholder = placeholder, room = buildRoom() }
+	local room, light, backdrop = buildRoom()
+	stage = { gui = gui, placeholder = placeholder, room = room, light = light, backdrop = backdrop }
 	return stage :: Stage
 end
 
@@ -157,6 +165,22 @@ local function takeCamera()
 	end
 	camera.CameraType = Enum.CameraType.Scriptable
 	camera.FieldOfView = FOV
+	-- keep where the player was looking, levelled out
+	local cframe = savedCamera and savedCamera.cframe or camera.CFrame
+	local flat = Vector3.new(cframe.LookVector.X, 0, cframe.LookVector.Z)
+	if flat.Magnitude < 0.01 then
+		flat = Vector3.new(0, 0, -1)
+	end
+	view = CFrame.lookAt(cframe.Position, cframe.Position + flat.Unit)
+
+	if not focus then
+		focus = Instance.new("DepthOfFieldEffect")
+		focus.Name = "LE_InspectFocus"
+		focus.NearIntensity = 0
+		focus.FarIntensity = 1
+		focus.Parent = Lighting
+	end
+	getStage().backdrop.Transparency = 0.45
 end
 
 local function giveCameraBack()
@@ -165,6 +189,15 @@ local function giveCameraBack()
 		return
 	end
 	savedCamera = nil
+	view = nil
+	if focus then
+		focus:Destroy()
+		focus = nil
+	end
+	local st = getStage()
+	st.backdrop.Transparency = 1
+	st.backdrop.Position = PARK_POSITION
+	st.light.Position = PARK_POSITION
 	local camera = workspace.CurrentCamera
 	camera.FieldOfView = saved.fieldOfView
 	camera.CFrame = saved.cframe
@@ -203,19 +236,33 @@ local function dropOffset(s: Slot): number
 end
 
 local function place(s: Slot)
-	if s.model then
+	local model = s.model
+	local camera = view
+	if not s.shown or not camera then
+		if model then
+			model:PivotTo(CFrame.new(PARK_POSITION))
+		end
+		return
+	end
+	local distance = s.extent * CAMERA_DISTANCE * s.zoom
+	local center = camera.Position + camera.LookVector * distance
+	if model then
 		local offset = dropOffset(s)
-		s.model:PivotTo(
-			CFrame.new(ROOM_ORIGIN + Vector3.new(0, offset, 0))
+		model:PivotTo(
+			CFrame.new(center + Vector3.new(0, offset, 0))
+				* camera.Rotation
 				* CFrame.Angles(s.pitch, 0, 0)
 				* CFrame.Angles(0, s.yaw + offset * 0.4, 0)
 		)
 	end
-	if s.shown then
-		local distance = s.extent * 1.9 * s.zoom
-		workspace.CurrentCamera.CFrame =
-			CFrame.lookAt(ROOM_ORIGIN + Vector3.new(0, distance * 0.1, distance), ROOM_ORIGIN)
+	workspace.CurrentCamera.CFrame = camera
+	if focus then
+		focus.FocusDistance = distance
+		focus.InFocusRadius = math.max(s.extent * 0.9, 1)
 	end
+	local st = getStage()
+	st.light.Position = camera.Position + camera.UpVector * s.extent + camera.RightVector * -s.extent
+	st.backdrop.CFrame = CFrame.lookAt(camera.Position + camera.LookVector * distance * 3, camera.Position)
 end
 
 local function release(s: Slot)
@@ -323,6 +370,7 @@ function InspectStage.show(item: Types.ItemInstance): boolean
 		if camera.CameraType ~= Enum.CameraType.Scriptable then
 			camera.CameraType = Enum.CameraType.Scriptable
 		end
+		setCharacterHidden(true)
 		s.idle += dt
 		if s.idle > 1.5 then
 			s.yaw += dt * AUTO_SPIN
@@ -374,6 +422,7 @@ function InspectStage.hide()
 	local st = getStage()
 	st.placeholder.Visible = false
 	giveCameraBack()
+	setCharacterHidden(false)
 	setControlsEnabled(true)
 	local blur = Lighting:FindFirstChild(FOCUS_BLUR_NAME)
 	if blur and blur:IsA("BlurEffect") then

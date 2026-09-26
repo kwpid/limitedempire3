@@ -1,6 +1,8 @@
--- short cutscene played between the case spin and the item reveal for Exotic and Divine unboxes: the screen goes
--- dark, rays in the tier's color spin up, then a flash, a shake and a ring as the tier name slams in, and the item
--- rises into view. Divine is longer, with shimmering rays and text and a second ring. click anywhere to skip.
+-- short cutscene played between the case spin and the item reveal for Exotic and Divine unboxes. click to skip.
+-- Exotic: the screen goes dark, rays in the tier's color spin up, then a flash, a shake and a ring as the tier name
+-- slams in, and the item rises into view.
+-- Divine (DivineReveal): calmer and cleaner, a thin line of light draws across the screen, opens into a glowing
+-- band with one soft flash, DIVINE settles in with its shimmer, then the item and its name rise in.
 -- props: item, onDone()
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -62,7 +64,271 @@ local function Ring(props)
 	})
 end
 
-local function RareReveal(props)
+local DIVINE_DURATION = 3.4
+
+local function DivineReveal(props)
+	local item = props.item
+	local tier = ItemRegistry.tier(item.assetId)
+	local info = ItemRegistry.get(item.assetId)
+	local traitIds = Traits.of(item)
+	local time, setTime = React.useBinding(0)
+	local done = React.useRef(false)
+
+	local function finish()
+		if not done.current then
+			done.current = true
+			props.onDone()
+		end
+	end
+
+	-- timeline (seconds)
+	local LINE_IN, LINE_OPEN, TITLE_IN, ITEM_IN, NAME_IN = 0.35, 1.05, 1.2, 1.6, 2
+
+	React.useLayoutEffect(function()
+		local start = os.clock()
+		local cued = false
+		Sfx.play("whoosh", 0.6)
+		local connection = RunService.RenderStepped:Connect(function()
+			local t = os.clock() - start
+			setTime(t)
+			if not cued and t >= LINE_OPEN then
+				cued = true
+				Sfx.play("revealMythic", 0.6)
+				Sfx.play("revealMythicSweep")
+			end
+			if t >= DIVINE_DURATION then
+				finish()
+			end
+		end)
+		return function()
+			connection:Disconnect()
+		end
+	end, {})
+
+	local function fadeOut(t: number): number
+		return span(t, DIVINE_DURATION - FADE_OUT, DIVINE_DURATION)
+	end
+
+	local rays = {}
+	for index = 1, 6 do
+		rays["Ray" .. index] = e("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.new(0, 3, 1.6, 0),
+			Rotation = time:map(function(t)
+				return (index - 1) * 30 + t * 6
+			end),
+			BackgroundColor3 = Color3.new(1, 1, 1),
+			BackgroundTransparency = time:map(function(t)
+				return 1 - span(t, LINE_OPEN, LINE_OPEN + 0.8) * 0.9
+			end),
+			BorderSizePixel = 0,
+			ZIndex = 2,
+		}, {
+			Fade = e("UIGradient", {
+				Rotation = 90,
+				Transparency = NumberSequence.new({
+					NumberSequenceKeypoint.new(0, 1),
+					NumberSequenceKeypoint.new(0.5, 0),
+					NumberSequenceKeypoint.new(1, 1),
+				}),
+			}),
+		})
+	end
+
+	return e("TextButton", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.fromRGB(3, 3, 6),
+		BackgroundTransparency = time:map(function(t)
+			return math.max(1 - easeOut(span(t, 0, 0.35)) * 0.96, fadeOut(t))
+		end),
+		BorderSizePixel = 0,
+		AutoButtonColor = false,
+		Text = "",
+		ZIndex = 1,
+		[React.Event.Activated] = finish,
+	}, {
+		Stage = e("CanvasGroup", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			GroupTransparency = time:map(fadeOut),
+		}, {
+			Rays = e("Frame", {
+				Size = UDim2.fromScale(1, 1),
+				BackgroundTransparency = 1,
+				ZIndex = 2,
+			}, rays),
+			-- the line of light, then the band it opens into
+			Band = e("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(0.5, 0.5),
+				Size = time:map(function(t)
+					local width = easeOut(span(t, LINE_IN, LINE_OPEN))
+					local open = easeOut(span(t, LINE_OPEN, LINE_OPEN + 0.5))
+					return UDim2.new(width, 0, 0, 2 + open * 260)
+				end),
+				BackgroundColor3 = Color3.new(1, 1, 1),
+				BackgroundTransparency = time:map(function(t)
+					return 1 - span(t, LINE_IN, LINE_IN + 0.2) + span(t, LINE_OPEN, LINE_OPEN + 0.9) * 0.82
+				end),
+				BorderSizePixel = 0,
+				ZIndex = 3,
+			}, {
+				Soft = e("UIGradient", {
+					Rotation = 90,
+					Transparency = NumberSequence.new({
+						NumberSequenceKeypoint.new(0, 1),
+						NumberSequenceKeypoint.new(0.5, 0),
+						NumberSequenceKeypoint.new(1, 1),
+					}),
+				}),
+				Shimmer = e(TierGradient, { tier = tier }),
+			}),
+			Edges = e("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(0.5, 0.5),
+				Size = time:map(function(t)
+					local open = easeOut(span(t, LINE_OPEN, LINE_OPEN + 0.5))
+					return UDim2.new(easeOut(span(t, LINE_IN, LINE_OPEN)), 0, 0, 2 + open * 260)
+				end),
+				BackgroundTransparency = 1,
+				ZIndex = 3,
+			}, {
+				Top = e("Frame", {
+					Size = UDim2.new(1, 0, 0, 1),
+					BackgroundColor3 = Color3.new(1, 1, 1),
+					BackgroundTransparency = time:map(function(t)
+						return 1 - span(t, LINE_OPEN, LINE_OPEN + 0.3) * 0.55
+					end),
+					BorderSizePixel = 0,
+				}, {
+					Soft = e("UIGradient", {
+						Transparency = NumberSequence.new({
+							NumberSequenceKeypoint.new(0, 1),
+							NumberSequenceKeypoint.new(0.5, 0),
+							NumberSequenceKeypoint.new(1, 1),
+						}),
+					}),
+				}),
+				Bottom = e("Frame", {
+					AnchorPoint = Vector2.new(0, 1),
+					Position = UDim2.fromScale(0, 1),
+					Size = UDim2.new(1, 0, 0, 1),
+					BackgroundColor3 = Color3.new(1, 1, 1),
+					BackgroundTransparency = time:map(function(t)
+						return 1 - span(t, LINE_OPEN, LINE_OPEN + 0.3) * 0.55
+					end),
+					BorderSizePixel = 0,
+				}, {
+					Soft = e("UIGradient", {
+						Transparency = NumberSequence.new({
+							NumberSequenceKeypoint.new(0, 1),
+							NumberSequenceKeypoint.new(0.5, 0),
+							NumberSequenceKeypoint.new(1, 1),
+						}),
+					}),
+				}),
+			}),
+			Thumbnail = e("ImageLabel", {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = time:map(function(t)
+					local p = easeOut(span(t, ITEM_IN, ITEM_IN + 0.6))
+					return UDim2.new(0.5, 0, 0.5 + (1 - p) * 0.04, 0)
+				end),
+				Size = UDim2.fromScale(0.22, 0.22),
+				SizeConstraint = Enum.SizeConstraint.RelativeYY,
+				BackgroundTransparency = 1,
+				Image = ItemRegistry.thumbnail(item.assetId, 420),
+				ImageTransparency = time:map(function(t)
+					return 1 - span(t, ITEM_IN, ITEM_IN + 0.5)
+				end),
+				ScaleType = Enum.ScaleType.Fit,
+				ZIndex = 5,
+			}, {
+				Grow = e("UIScale", {
+					Scale = time:map(function(t)
+						return 0.92 + easeOut(span(t, ITEM_IN, ITEM_IN + 0.9)) * 0.08
+					end),
+				}),
+			}),
+			TierName = e(Text, {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(0.5, 0.22),
+				Size = UDim2.new(1, 0, 0, 80),
+				Text = "D I V I N E",
+				TextSize = 64,
+				TextColor3 = tier.color,
+				TextXAlignment = Enum.TextXAlignment.Center,
+				TextTransparency = time:map(function(t)
+					return 1 - span(t, TITLE_IN, TITLE_IN + 0.5)
+				end),
+				TextStrokeTransparency = 1,
+				display = true,
+				weight = Enum.FontWeight.Bold,
+				ZIndex = 6,
+			}, {
+				Settle = e("UIScale", {
+					Scale = time:map(function(t)
+						return 1 + (1 - easeOut(span(t, TITLE_IN, TITLE_IN + 0.8))) * 0.15
+					end),
+				}),
+				Shimmer = e(TierGradient, { tier = tier }),
+			}),
+			Caption = e(Text, {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(0.5, 0.29),
+				Size = UDim2.new(1, 0, 0, 18),
+				Text = "LIMITED",
+				TextSize = 14,
+				TextColor3 = Theme.colors.textDim,
+				TextXAlignment = Enum.TextXAlignment.Center,
+				TextTransparency = time:map(function(t)
+					return 1 - span(t, TITLE_IN + 0.3, TITLE_IN + 0.7)
+				end),
+				display = true,
+				ZIndex = 6,
+			}),
+			ItemName = e(TraitText, {
+				trait = traitIds[1],
+				AnchorPoint = Vector2.new(0.5, 0),
+				Position = UDim2.fromScale(0.5, 0.7),
+				Size = UDim2.new(1, 0, 0, 36),
+				Text = Traits.fullName(traitIds, info and info.name or "Unknown"),
+				TextSize = 30,
+				TextXAlignment = Enum.TextXAlignment.Center,
+				TextTransparency = time:map(function(t)
+					return 1 - span(t, NAME_IN, NAME_IN + 0.4)
+				end),
+				display = true,
+				weight = Enum.FontWeight.Bold,
+				ZIndex = 6,
+			}),
+			Hint = e(Text, {
+				AnchorPoint = Vector2.new(0.5, 1),
+				Position = UDim2.new(0.5, 0, 1, -30),
+				Size = UDim2.new(1, 0, 0, 16),
+				Text = "Click to skip",
+				TextSize = 12,
+				TextColor3 = Theme.colors.textFaint,
+				TextXAlignment = Enum.TextXAlignment.Center,
+				ZIndex = 6,
+			}),
+			Flash = e("Frame", {
+				Size = UDim2.fromScale(1, 1),
+				BackgroundColor3 = Color3.new(1, 1, 1),
+				BackgroundTransparency = time:map(function(t)
+					local rise = span(t, LINE_OPEN - 0.05, LINE_OPEN)
+					local fall = span(t, LINE_OPEN, LINE_OPEN + 0.6)
+					return 1 - rise * (1 - fall) * 0.35
+				end),
+				BorderSizePixel = 0,
+				ZIndex = 8,
+			}),
+		}),
+	})
+end
+
+local function ExoticReveal(props)
 	local item = props.item
 	local tier = ItemRegistry.tier(item.assetId)
 	local info = ItemRegistry.get(item.assetId)
@@ -280,6 +546,13 @@ local function RareReveal(props)
 			}),
 		}),
 	})
+end
+
+local function RareReveal(props)
+	if ItemRegistry.tier(props.item.assetId).id == "divine" then
+		return e(DivineReveal, props)
+	end
+	return e(ExoticReveal, props)
 end
 
 return RareReveal

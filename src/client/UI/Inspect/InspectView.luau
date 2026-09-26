@@ -25,10 +25,12 @@ local e = React.createElement
 
 local BAR_HEIGHT = 70
 local CARD_WIDTH = 340
--- the stats card slides in a moment after the item lands, and the value counts up
+-- the stats card slides in a moment after the item lands, then its numbers roll up smoothly to their real values
+-- and the wear marker slides from the worn end to the item's float
 local STATS_DELAY = 0.45
 local STATS_TIME = 0.4
-local COUNT_TIME = 0.7
+local COUNT_START = 0.25
+local COUNT_TIME = 1.1
 
 local function easeOut(t: number): number
 	return 1 - (1 - t) ^ 3
@@ -79,7 +81,7 @@ local function InspectView(props)
 		connection = RunService.RenderStepped:Connect(function()
 			local elapsed = os.clock() - start
 			setStatsTime(elapsed)
-			if elapsed > COUNT_TIME then
+			if elapsed > COUNT_START + COUNT_TIME then
 				connection:Disconnect()
 			end
 		end)
@@ -131,6 +133,12 @@ local function InspectView(props)
 	local info = ItemRegistry.get(item.assetId)
 	local tier = ItemRegistry.tier(item.assetId)
 	local traitIds = Traits.of(item)
+	local counting = statsTime:map(function(elapsed)
+		return easeOut(math.clamp((elapsed - COUNT_START) / COUNT_TIME, 0, 1))
+	end)
+	local function countTo(format: (number) -> string)
+		return counting:map(format)
+	end
 	local trait = Traits.get(traitIds[1])
 	local stacked = Traits.get(traitIds[2])
 	local breakdown = Valuation.breakdown(item)
@@ -299,8 +307,7 @@ local function InspectView(props)
 				Value = e(Text, {
 					LayoutOrder = 2,
 					Size = UDim2.new(1, 0, 0, 34),
-					Text = statsTime:map(function(elapsed)
-						local p = easeOut(math.clamp(elapsed / COUNT_TIME, 0, 1))
+					Text = countTo(function(p)
 						return Format.cash(math.floor(breakdown.total * p))
 					end),
 					TextSize = 34,
@@ -311,6 +318,7 @@ local function InspectView(props)
 				Wear = e(WearBar, {
 					layoutOrder = 3,
 					float = item.float,
+					progress = counting,
 					size = UDim2.new(1, 0, 0, 40),
 				}),
 				Rows = e("Frame", {
@@ -323,28 +331,39 @@ local function InspectView(props)
 					Serial = e(Row, {
 						layoutOrder = 1,
 						label = "Serial",
-						value = Format.serial(item.serial) .. (serialLabel and `  {serialLabel}` or ""),
+						value = countTo(function(p)
+							return Format.serial(math.max(1, math.floor(item.serial * p + 0.5)))
+								.. (serialLabel and `  {serialLabel}` or "")
+						end),
 						color = serialLabel and Theme.colors.cash or nil,
 					}),
 					Trait = e(Row, {
 						layoutOrder = 2,
 						label = "Trait",
 						trait = traitIds[1],
-						value = if stacked
-							then string.format("%s  x%.2f total", Traits.label(traitIds), breakdown.trait)
-							elseif trait then string.format("%s  x%.2f", trait.name, breakdown.trait)
+						value = if trait
+							then countTo(function(p)
+								local shown = 1 + (breakdown.trait - 1) * p
+								return if stacked
+									then string.format("%s  x%.2f total", Traits.label(traitIds) :: string, shown)
+									else string.format("%s  x%.2f", trait.name, shown)
+							end)
 							else "None",
 						color = if trait then trait.uiColor else Theme.colors.textFaint,
 					}),
 					Base = e(Row, {
 						layoutOrder = 3,
 						label = "Base value",
-						value = Format.cash(breakdown.base),
+						value = countTo(function(p)
+							return Format.cash(math.floor(breakdown.base * p))
+						end),
 					}),
 					Tracker = item.tracker and e(Row, {
 						layoutOrder = 4,
 						label = "Stat Tracker",
-						value = `{Format.commas(item.tracker.opens)} opened`,
+						value = countTo(function(p)
+							return `{Format.commas(math.floor(item.tracker.opens * p + 0.5))} opened`
+						end),
 						color = Theme.colors.tracker,
 					}),
 					Series = e(Row, {

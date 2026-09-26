@@ -8,9 +8,16 @@ local Text = require(script.Parent.Text)
 
 local e = React.createElement
 
+-- the condition bar with a marker at the item's float. progress (optional binding, 0 to 1) animates the marker in
+-- from the worn end (1.0) to the real float, with the float number and condition name following it.
 local function WearBar(props)
 	local float = props.float
 	local band = Condition.fromFloat(float)
+	local shown = if props.progress
+		then props.progress:map(function(p)
+			return 1 + (float - 1) * math.clamp(p, 0, 1)
+		end)
+		else nil
 
 	local segments = {}
 	for index, entry in Condition.list do
@@ -33,16 +40,28 @@ local function WearBar(props)
 	}, {
 		Label = e(Text, {
 			Size = UDim2.new(0.5, 0, 0, 16),
-			Text = band.name,
+			Text = if shown
+				then shown:map(function(f)
+					return string.upper(Condition.fromFloat(f).name)
+				end)
+				else band.name,
 			TextSize = 13,
-			TextColor3 = band.color,
+			TextColor3 = if shown
+				then shown:map(function(f)
+					return Condition.fromFloat(f).color
+				end)
+				else band.color,
 			display = true,
 		}),
 		Value = e(Text, {
 			AnchorPoint = Vector2.new(1, 0),
 			Position = UDim2.fromScale(1, 0),
 			Size = UDim2.new(0.5, 0, 0, 16),
-			Text = "Float " .. Format.float(float),
+			Text = if shown
+				then shown:map(function(f)
+					return "Float " .. Format.float(f)
+				end)
+				else "Float " .. Format.float(float),
 			TextSize = 12,
 			TextColor3 = Theme.colors.textDim,
 			TextXAlignment = Enum.TextXAlignment.Right,
@@ -59,7 +78,11 @@ local function WearBar(props)
 			}, segments),
 			Marker = e("Frame", {
 				AnchorPoint = Vector2.new(0.5, 0.5),
-				Position = UDim2.fromScale(math.clamp(float, 0, 1), 0.5),
+				Position = if shown
+					then shown:map(function(f)
+						return UDim2.fromScale(math.clamp(f, 0, 1), 0.5)
+					end)
+					else UDim2.fromScale(math.clamp(float, 0, 1), 0.5),
 				Size = UDim2.fromOffset(3, 14),
 				BackgroundColor3 = Theme.colors.text,
 				BorderSizePixel = 0,
