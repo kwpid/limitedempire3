@@ -32,6 +32,8 @@ local FUNCTIONS = {
 	"GetLeaderboard",
 	"TradeAction",
 	"CashGame",
+	"RedeemCode",
+	"DailyLogin",
 }
 
 local FOLDER_NAME = "Remotes"
