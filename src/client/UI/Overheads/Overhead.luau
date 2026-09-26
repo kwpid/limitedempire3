@@ -17,6 +17,10 @@ local e = React.createElement
 -- the overhead is laid out at this pixel size, then scaled to match the billboard's on-screen size
 local DESIGN_WIDTH = 260
 local DESIGN_HEIGHT = 74
+local TRACKERS_PER_ROW = 3
+local TRACKER_TEXT_SIZE = 12
+local TRACKER_ROW_HEIGHT = TRACKER_TEXT_SIZE + 7
+local TRACKER_ROW_GAP = 3
 
 -- the server mirrors equipped stat trackers to this attribute as json: { { a = assetId string, n = count } }
 local function parseTrackers(raw: any): { { assetId: number, count: number } }
@@ -47,23 +51,42 @@ local function Overhead(props)
 		return parseTrackers(trackersRaw)
 	end, { trackersRaw })
 
-	local trackerChildren = {
+	-- fixed size rows instead of a wrapping auto sized frame: the overhead's UIScale starts at 0, and an auto sized
+	-- frame measured at that scale stayed 0 tall until its contents changed (trackers were hidden after rejoining
+	-- until a case was opened)
+	local rowCount = math.ceil(#trackers / TRACKERS_PER_ROW)
+	local trackerRows = {
 		Layout = e("UIListLayout", {
-			FillDirection = Enum.FillDirection.Horizontal,
+			FillDirection = Enum.FillDirection.Vertical,
 			HorizontalAlignment = Enum.HorizontalAlignment.Center,
-			VerticalAlignment = Enum.VerticalAlignment.Bottom,
-			Padding = UDim.new(0, 4),
-			Wraps = true,
+			Padding = UDim.new(0, TRACKER_ROW_GAP),
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
 	}
-	for index, tracker in trackers do
-		trackerChildren["Tracker" .. index] = e(TrackerBadge, {
-			layoutOrder = index,
-			count = tracker.count,
-			assetId = tracker.assetId,
-			textSize = 12,
-		})
+	for row = 1, rowCount do
+		local badges = {
+			Layout = e("UIListLayout", {
+				FillDirection = Enum.FillDirection.Horizontal,
+				HorizontalAlignment = Enum.HorizontalAlignment.Center,
+				VerticalAlignment = Enum.VerticalAlignment.Center,
+				Padding = UDim.new(0, 4),
+				SortOrder = Enum.SortOrder.LayoutOrder,
+			}),
+		}
+		for index = (row - 1) * TRACKERS_PER_ROW + 1, math.min(row * TRACKERS_PER_ROW, #trackers) do
+			local tracker = trackers[index]
+			badges["Tracker" .. index] = e(TrackerBadge, {
+				layoutOrder = index,
+				count = tracker.count,
+				assetId = tracker.assetId,
+				textSize = TRACKER_TEXT_SIZE,
+			})
+		end
+		trackerRows["Row" .. row] = e("Frame", {
+			LayoutOrder = row,
+			Size = UDim2.new(1, 0, 0, TRACKER_ROW_HEIGHT),
+			BackgroundTransparency = 1,
+		}, badges)
 	end
 	local billboardRef = React.useRef(nil :: BillboardGui?)
 	local scale, setScale = React.useState(0)
@@ -95,20 +118,26 @@ local function Overhead(props)
 		MaxDistance = Config.Overhead.MaxDistance,
 		ClipsDescendants = false,
 	}, {
-		Content = e("Frame", {
+		-- only drawn once the scale is known, so auto sized parts (tracker badges, the value pill) are measured at
+		-- their real size instead of at scale 0
+		Content = scale > 0 and e("Frame", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(0.5, 0.5),
 			Size = UDim2.fromOffset(DESIGN_WIDTH, DESIGN_HEIGHT),
 			BackgroundTransparency = 1,
 		}, {
 			Scale = e("UIScale", { Scale = scale }),
-			Trackers = if #trackers > 0
+			Trackers = if rowCount > 0
 				then e("Frame", {
 					LayoutOrder = 0,
-					Size = UDim2.fromScale(1, 0),
-					AutomaticSize = Enum.AutomaticSize.Y,
+					Size = UDim2.new(
+						1,
+						0,
+						0,
+						rowCount * TRACKER_ROW_HEIGHT + (rowCount - 1) * TRACKER_ROW_GAP
+					),
 					BackgroundTransparency = 1,
-				}, trackerChildren)
+				}, trackerRows)
 				else nil,
 			Layout = e("UIListLayout", {
 				FillDirection = Enum.FillDirection.Vertical,
