@@ -4,12 +4,15 @@ local React = require(ReplicatedStorage.Packages.React)
 local ItemRegistry = require(ReplicatedStorage.Shared.Items.ItemRegistry)
 local Theme = require(script.Parent.Parent.Theme)
 local Text = require(script.Parent.Text)
+local TraitText = require(script.Parent.TraitText)
+local Checkmark = require(script.Parent.Checkmark)
 local Sfx = require(script.Parent.Parent.Parent.Controllers.Sfx)
 
 local e = React.createElement
 
 local function Corner(props)
-	return e(Text, {
+	return e(TraitText, {
+		trait = props.trait,
 		Position = props.position,
 		AnchorPoint = props.anchorPoint,
 		Size = UDim2.fromOffset(0, 14),
@@ -105,7 +108,7 @@ local function ItemTile(props)
 		}),
 		Subtitle = e(Text, {
 			Position = UDim2.new(0, 8, 1, -26),
-			Size = UDim2.new(1, -16, 0, 14),
+			Size = UDim2.new(1, if props.equipped then -36 else -16, 0, 14),
 			Text = props.subtitle or "",
 			TextSize = 12,
 			TextColor3 = props.subtitleColor or Theme.colors.textDim,
@@ -119,9 +122,16 @@ local function ItemTile(props)
 			BorderSizePixel = 0,
 			ZIndex = 2,
 		}),
+		Equipped = props.equipped and e(Checkmark, {
+			anchorPoint = Vector2.new(1, 1),
+			position = UDim2.new(1, -7, 1, -9),
+			size = 16,
+			zIndex = 3,
+		}),
 		Badge = props.badgeText and e(Corner, {
 			text = props.badgeText,
 			color = props.badgeColor,
+			trait = props.badgeTrait,
 			position = UDim2.fromOffset(7, 5),
 			alignment = Enum.TextXAlignment.Left,
 		}),

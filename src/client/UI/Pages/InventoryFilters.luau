@@ -114,7 +114,14 @@ function InventoryFilters.apply(entries, filters, equippedSet)
 		end
 		table.insert(result, entry)
 	end
-	table.sort(result, SORTERS[filters.sort or "value_desc"] or SORTERS.value_desc)
+	local sorter = SORTERS[filters.sort or "value_desc"] or SORTERS.value_desc
+	table.sort(result, function(a, b)
+		local aEquipped, bEquipped = equippedSet[a.item.uid] == true, equippedSet[b.item.uid] == true
+		if aEquipped ~= bEquipped then
+			return aEquipped
+		end
+		return sorter(a, b)
+	end)
 	return result
 end
 
