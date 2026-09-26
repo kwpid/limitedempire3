@@ -130,6 +130,8 @@ end
 local function run(lobby: Lobby)
 	lobby.started = true
 	broadcastLobbies()
+	-- rolling yields for serials, tell the lobby right away so nobody clicks into a battle that already started
+	sendLobby(lobby)
 
 	local seatPlayers: { [number]: Player } = {}
 	for player, index in lobby.players do
@@ -273,8 +275,10 @@ local ACTIONS = {
 
 	leave = function(player: Player): Types.Result<any>
 		local lobby = playerLobby[player]
-		if not lobby or lobby.started then
+		if not lobby then
 			return fail("You're not in a lobby")
+		elseif lobby.started then
+			return fail("The battle already started")
 		end
 		if lobby.host == player then
 			closeLobby(lobby, true)
@@ -293,7 +297,11 @@ local ACTIONS = {
 
 	addBot = function(player: Player): Types.Result<any>
 		local lobby = playerLobby[player]
-		if not lobby or lobby.started or lobby.host ~= player then
+		if not lobby then
+			return fail("You're not in a lobby")
+		elseif lobby.started then
+			return fail("The battle already started")
+		elseif lobby.host ~= player then
 			return fail("Only the host can add bots")
 		end
 		local index = openSeat(lobby)
@@ -312,7 +320,11 @@ local ACTIONS = {
 
 	start = function(player: Player): Types.Result<any>
 		local lobby = playerLobby[player]
-		if not lobby or lobby.started or lobby.host ~= player then
+		if not lobby then
+			return fail("You're not in a lobby")
+		elseif lobby.started then
+			return fail("The battle already started")
+		elseif lobby.host ~= player then
 			return fail("Only the host can start")
 		end
 		while true do

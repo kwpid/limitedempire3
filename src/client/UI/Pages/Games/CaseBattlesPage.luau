@@ -12,13 +12,18 @@ local React = require(ReplicatedStorage.Packages.React)
 local Shared = ReplicatedStorage.Shared
 local CaseRegistry = require(Shared.Cases.CaseRegistry)
 local Config = require(Shared.Config)
+local Condition = require(Shared.Modifiers.Condition)
 local Format = require(Shared.Util.Format)
+local Traits = require(Shared.Modifiers.Traits)
 local ItemRegistry = require(Shared.Items.ItemRegistry)
 local Valuation = require(Shared.Modifiers.Valuation)
 local Theme = require(script.Parent.Parent.Parent.Theme)
 local Text = require(script.Parent.Parent.Parent.Components.Text)
 local Button = require(script.Parent.Parent.Parent.Components.Button)
 local Grid = require(script.Parent.Parent.Parent.Components.Grid)
+local SpecialTile = require(script.Parent.Parent.Parent.Components.SpecialTile)
+local TraitText = require(script.Parent.Parent.Parent.Components.TraitText)
+local TrackerBadge = require(script.Parent.Parent.Parent.Components.TrackerBadge)
 local Battles = require(script.Parent.Parent.Parent.Parent.Controllers.Battles)
 local Notifications = require(script.Parent.Parent.Parent.Parent.Controllers.Notifications)
 local Sfx = require(script.Parent.Parent.Parent.Parent.Controllers.Sfx)
@@ -26,10 +31,13 @@ local Sfx = require(script.Parent.Parent.Parent.Parent.Controllers.Sfx)
 local e = React.createElement
 
 local MAX_ROUNDS = 10
-local SPIN_TIME = 2.4
-local HOLD_TIME = 0.9
+local SPIN_TIME = 3.2
+local HOLD_TIME = 1.4
 local ROUND_TIME = SPIN_TIME + HOLD_TIME
-local SPIN_FRAMES = 22
+local REEL_TILES = 34
+local REEL_WIN = 29
+local TILE_H = 88
+local REEL_HEIGHT = 150
 
 local function useBattles()
 	local state, setState = React.useState(Battles.get())
@@ -162,7 +170,12 @@ local function Create(props)
 	end
 
 	local caseTiles = {}
-	for index, case in CaseRegistry.list() do
+	-- most expensive first
+	local sortedCases = table.clone(CaseRegistry.list())
+	table.sort(sortedCases, function(a, b)
+		return a.price > b.price
+	end)
+	for index, case in sortedCases do
 		caseTiles[case.id] = e("TextButton", {
 			LayoutOrder = index,
 			BackgroundColor3 = Theme.colors.panel,
@@ -556,7 +569,10 @@ local function Lobby(props)
 		Status = e(Text, {
 			Position = UDim2.fromOffset(0, 266),
 			Size = UDim2.new(1, 0, 0, 20),
-			Text = if open > 0
+			Text = if lobby.started
+				then "Rolling the battle..."
+				elseif
+					open > 0
 				then `Waiting for {open} more {if open == 1 then "player" else "players"}. It starts when every seat is taken.`
 				else "Starting...",
 			TextSize = 13,
@@ -580,7 +596,7 @@ local function Lobby(props)
 				size = UDim2.fromOffset(160, 44),
 				text = "Add bot",
 				textSize = 16,
-				disabled = open == 0,
+				disabled = open == 0 or lobby.started,
 				onClick = function()
 					run("addBot")
 				end,
@@ -591,6 +607,7 @@ local function Lobby(props)
 				text = "Start (bots fill seats)",
 				textSize = 16,
 				color = Theme.colors.good,
+				disabled = lobby.started,
 				onClick = function()
 					run("start")
 				end,
@@ -601,6 +618,7 @@ local function Lobby(props)
 				text = if isHost then "Close lobby" else "Leave",
 				textSize = 16,
 				color = Theme.colors.bad,
+				disabled = lobby.started,
 				onClick = function()
 					run("leave")
 				end,
@@ -611,6 +629,156 @@ end
 
 -- battle ---------------------------------------------------------------------------------------------------
 
+local function easeOut(t: number): number
+	return 1 - (1 - t) ^ 4
+end
+
+-- one tile of the vertical reel: the item (or the hidden special tile) over its rarity color
+local function ReelTile(props)
+	local assetId = props.assetId
+	if CaseRegistry.isSpecial(assetId) and not props.reveal then
+		return e(SpecialTile, {
+			compact = true,
+			position = props.position,
+			size = UDim2.new(1, -8, 0, TILE_H - 6),
+		})
+	end
+	local tier = ItemRegistry.tier(assetId)
+	return e("Frame", {
+		Position = props.position,
+		Size = UDim2.new(1, -8, 0, TILE_H - 6),
+		BackgroundColor3 = Theme.colors.panel,
+		BorderSizePixel = 0,
+	}, {
+		Corner = e("UICorner", { CornerRadius = Theme.radius }),
+		Fade = e("Frame", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = tier.color,
+			BorderSizePixel = 0,
+		}, {
+			Corner = e("UICorner", { CornerRadius = Theme.radius }),
+			Gradient = e("UIGradient", {
+				Rotation = 90,
+				Transparency = NumberSequence.new({
+					NumberSequenceKeypoint.new(0, 1),
+					NumberSequenceKeypoint.new(0.45, 1),
+					NumberSequenceKeypoint.new(1, 0.6),
+				}),
+			}),
+		}),
+		Image = e("ImageLabel", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromOffset(TILE_H - 20, TILE_H - 20),
+			BackgroundTransparency = 1,
+			Image = ItemRegistry.thumbnail(assetId, 150),
+		}),
+		Bar = e("Frame", {
+			AnchorPoint = Vector2.new(0, 1),
+			Position = UDim2.fromScale(0, 1),
+			Size = UDim2.new(1, 0, 0, 3),
+			BackgroundColor3 = tier.color,
+			BorderSizePixel = 0,
+		}),
+	})
+end
+
+-- the item a column landed on this round: name in its trait style, value, condition, tracker
+local function ResultCard(props)
+	local item = props.item
+	local info = ItemRegistry.get(item.assetId)
+	local tier = ItemRegistry.tier(item.assetId)
+	local band = Condition.fromFloat(item.float)
+	local traitIds = Traits.of(item)
+	return e("Frame", {
+		Position = props.position,
+		Size = UDim2.new(1, -16, 0, 58),
+		BackgroundColor3 = Theme.colors.panel,
+		BorderSizePixel = 0,
+	}, {
+		Corner = e("UICorner", { CornerRadius = Theme.radius }),
+		Stroke = e("UIStroke", { Color = tier.color, Transparency = 0.3 }),
+		Name = e(TraitText, {
+			trait = traitIds[1],
+			Position = UDim2.fromOffset(8, 5),
+			Size = UDim2.new(1, -16, 0, 16),
+			Text = Traits.fullName(traitIds, info and info.name or "Unknown"),
+			TextSize = 13,
+			TextColor3 = Theme.colors.text,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			weight = Enum.FontWeight.Bold,
+		}),
+		Value = e(Text, {
+			Position = UDim2.fromOffset(8, 22),
+			Size = UDim2.new(1, -16, 0, 18),
+			Text = Format.cash(Valuation.value(item)),
+			TextSize = 17,
+			TextColor3 = Theme.colors.cash,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			display = true,
+			weight = Enum.FontWeight.Bold,
+		}),
+		Meta = e(Text, {
+			Position = UDim2.fromOffset(8, 40),
+			Size = UDim2.new(1, -16, 0, 14),
+			Text = `{tier.name}  ·  {band.name}  ·  #{item.serial}`,
+			TextSize = 11,
+			TextColor3 = band.color,
+			TextXAlignment = Enum.TextXAlignment.Center,
+		}),
+		Tracker = item.tracker and e(TrackerBadge, {
+			count = item.tracker.opens,
+			anchorPoint = Vector2.new(1, 0),
+			position = UDim2.new(1, -4, 0, -10),
+			textSize = 10,
+			zIndex = 3,
+		}),
+	})
+end
+
+local function WonRow(props)
+	local item = props.item
+	local info = ItemRegistry.get(item.assetId)
+	local tier = ItemRegistry.tier(item.assetId)
+	local traitIds = Traits.of(item)
+	return e("Frame", {
+		LayoutOrder = props.layoutOrder,
+		Size = UDim2.new(1, 0, 0, 30),
+		BackgroundColor3 = Theme.colors.panel,
+		BorderSizePixel = 0,
+	}, {
+		Corner = e("UICorner", { CornerRadius = Theme.radius }),
+		Bar = e("Frame", {
+			Size = UDim2.new(0, 3, 1, 0),
+			BackgroundColor3 = tier.color,
+			BorderSizePixel = 0,
+		}),
+		Thumb = e("ImageLabel", {
+			Position = UDim2.fromOffset(6, 2),
+			Size = UDim2.fromOffset(26, 26),
+			BackgroundTransparency = 1,
+			Image = ItemRegistry.thumbnail(item.assetId, 150),
+		}),
+		Name = e(TraitText, {
+			trait = traitIds[1],
+			Position = UDim2.fromOffset(36, 0),
+			Size = UDim2.new(1, -110, 1, 0),
+			Text = Traits.fullName(traitIds, info and info.name or "Unknown"),
+			TextSize = 11,
+			TextColor3 = Theme.colors.textDim,
+		}),
+		Value = e(Text, {
+			AnchorPoint = Vector2.new(1, 0),
+			Position = UDim2.new(1, -6, 0, 0),
+			Size = UDim2.new(0, 70, 1, 0),
+			Text = Format.cash(Valuation.value(item)),
+			TextSize = 12,
+			TextColor3 = Theme.colors.cash,
+			TextXAlignment = Enum.TextXAlignment.Right,
+		}),
+	})
+end
+
 local function Column(props)
 	local battle = props.battle
 	local index = props.index
@@ -618,55 +786,52 @@ local function Column(props)
 	local round = props.round
 	local roundCount = #battle.rounds
 	local won = props.finished and battle.winner == index
+	local isMine = seat and seat.userId == Players.LocalPlayer.UserId
 
-	-- a quick cycle of random items from the case that slows down, then the real result
+	-- filler items for every round's reel, the real result goes in at REEL_WIN
 	local filler = React.useMemo(function()
 		local rng = Random.new()
 		local list = {}
 		for r, caseId in battle.lobby.cases do
 			list[r] = {}
-			for i = 1, SPIN_FRAMES do
+			for i = 1, REEL_TILES do
 				list[r][i] = CaseRegistry.roll(caseId, rng)
 			end
+			list[r][REEL_WIN] = battle.rounds[r][index].assetId
+		end
+		return list
+	end, {})
+	local jitter = React.useMemo(function()
+		local rng = Random.new()
+		local list = {}
+		for r = 1, roundCount do
+			list[r] = (rng:NextNumber() - 0.5) * TILE_H * 0.7
 		end
 		return list
 	end, {})
 
 	local total = 0
-	local wonItems = {
-		Layout = e("UIGridLayout", {
-			CellSize = UDim2.fromOffset(44, 44),
-			CellPadding = UDim2.fromOffset(4, 4),
-			SortOrder = Enum.SortOrder.LayoutOrder,
-		}),
+	local rows = {
+		Layout = e("UIListLayout", { Padding = UDim.new(0, 3), SortOrder = Enum.SortOrder.LayoutOrder }),
 	}
 	for r = 1, math.min(props.revealed, roundCount) do
 		local item = battle.rounds[r][index]
 		total += Valuation.value(item)
-		wonItems["Item" .. r] = e("ImageLabel", {
-			LayoutOrder = r,
-			BackgroundColor3 = Theme.colors.panel,
-			BorderSizePixel = 0,
-			Image = ItemRegistry.thumbnail(item.assetId, 150),
-		}, {
-			Corner = e("UICorner", { CornerRadius = Theme.radius }),
-			Stroke = e("UIStroke", { Color = ItemRegistry.tier(item.assetId).color }),
-		})
+		rows["Won" .. r] = e(WonRow, { layoutOrder = -r, item = item })
 	end
 
-	local current = if round <= roundCount then battle.rounds[round][index] else nil
-	local spinImage = props.time:map(function(t)
-		if not current then
-			return ""
-		end
-		local roundT = t - (round - 1) * ROUND_TIME
-		local p = math.clamp(roundT / SPIN_TIME, 0, 1)
-		if p >= 1 then
-			return ItemRegistry.thumbnail(current.assetId, 150)
-		end
-		local frame = math.floor((1 - (1 - p) ^ 2.5) * (SPIN_FRAMES - 1)) + 1
-		return ItemRegistry.thumbnail(filler[round][frame], 150)
-	end)
+	local spinning = not props.finished and round <= roundCount and props.revealed < round
+	local landed = if round <= roundCount and props.revealed >= round then battle.rounds[round][index] else nil
+	local target = (REEL_WIN - 1) * TILE_H + TILE_H / 2 - REEL_HEIGHT / 2 + (jitter[round] or 0)
+
+	local tiles = {}
+	for i, assetId in (filler[math.min(round, roundCount)] or {}) do
+		tiles["Tile" .. i] = e(ReelTile, {
+			assetId = assetId,
+			reveal = i == REEL_WIN and not spinning,
+			position = UDim2.fromOffset(4, (i - 1) * TILE_H + 3),
+		})
+	end
 
 	return e("Frame", {
 		LayoutOrder = index,
@@ -675,60 +840,97 @@ local function Column(props)
 	}, {
 		Corner = e("UICorner", { CornerRadius = UDim.new(0, 6) }),
 		Stroke = e("UIStroke", {
-			Color = if won then Theme.colors.good else Theme.colors.stroke,
+			Color = if won then Theme.colors.good elseif isMine then Theme.colors.strokeLight else Theme.colors.stroke,
 			Thickness = if won then 3 else 1,
 		}),
 		Name = e(Text, {
-			Position = UDim2.fromOffset(10, 8),
-			Size = UDim2.new(1, -20, 0, 20),
-			Text = if seat then seat.name .. (if seat.bot then "  (bot)" else "") else "?",
-			TextSize = 16,
+			Position = UDim2.fromOffset(10, 6),
+			Size = UDim2.new(1, -20, 0, 18),
+			Text = if seat then seat.name .. (if seat.bot then "  (bot)" elseif isMine then "  (you)" else "") else "?",
+			TextSize = 15,
 			TextXAlignment = Enum.TextXAlignment.Center,
 			display = true,
 		}),
 		Total = e(Text, {
-			Position = UDim2.fromOffset(10, 30),
+			Position = UDim2.fromOffset(10, 24),
 			Size = UDim2.new(1, -20, 0, 24),
 			Text = Format.cash(total),
 			TextSize = 22,
-			TextColor3 = Theme.colors.cash,
+			TextColor3 = if won then Theme.colors.good else Theme.colors.cash,
 			TextXAlignment = Enum.TextXAlignment.Center,
 			display = true,
 			weight = Enum.FontWeight.Bold,
 		}),
-		Spin = e("Frame", {
-			AnchorPoint = Vector2.new(0.5, 0),
-			Position = UDim2.new(0.5, 0, 0, 62),
-			Size = UDim2.fromOffset(120, 120),
-			BackgroundColor3 = Theme.colors.panel,
+		Reel = e("Frame", {
+			Position = UDim2.fromOffset(8, 54),
+			Size = UDim2.new(1, -16, 0, REEL_HEIGHT),
+			BackgroundColor3 = Theme.colors.backdrop,
 			BorderSizePixel = 0,
+			ClipsDescendants = true,
 		}, {
-			Corner = e("UICorner", { CornerRadius = UDim.new(0, 6) }),
-			Stroke = e("UIStroke", {
-				Color = if current and props.revealed >= round
-					then ItemRegistry.tier(current.assetId).color
-					else Theme.colors.stroke,
+			Corner = e("UICorner", { CornerRadius = Theme.radius }),
+			Strip = if props.finished
+				then nil
+				else e("Frame", {
+					Size = UDim2.new(1, 0, 0, REEL_TILES * TILE_H),
+					Position = props.time:map(function(t)
+						local roundT = t - (round - 1) * ROUND_TIME
+						local p = easeOut(math.clamp(roundT / SPIN_TIME, 0, 1))
+						return UDim2.fromOffset(0, -target * p)
+					end),
+					BackgroundTransparency = 1,
+				}, tiles),
+			Marker = e("Frame", {
+				AnchorPoint = Vector2.new(0, 0.5),
+				Position = UDim2.fromScale(0, 0.5),
+				Size = UDim2.new(1, 0, 0, 2),
+				BackgroundColor3 = Theme.colors.marker,
+				BorderSizePixel = 0,
+				ZIndex = 5,
 			}),
-			Image = e("ImageLabel", {
-				Size = UDim2.fromScale(1, 1),
-				BackgroundTransparency = 1,
-				Image = if props.finished then "" else spinImage,
+			ShadeTop = e("Frame", {
+				Size = UDim2.new(1, 0, 0.3, 0),
+				BackgroundColor3 = Theme.colors.backdrop,
+				BorderSizePixel = 0,
+				ZIndex = 4,
+			}, {
+				Gradient = e("UIGradient", { Rotation = 90, Transparency = NumberSequence.new(0.05, 1) }),
+			}),
+			ShadeBottom = e("Frame", {
+				AnchorPoint = Vector2.new(0, 1),
+				Position = UDim2.fromScale(0, 1),
+				Size = UDim2.new(1, 0, 0.3, 0),
+				BackgroundColor3 = Theme.colors.backdrop,
+				BorderSizePixel = 0,
+				ZIndex = 4,
+			}, {
+				Gradient = e("UIGradient", { Rotation = 90, Transparency = NumberSequence.new(1, 0.05) }),
 			}),
 			Winner = props.finished and e(Text, {
 				Size = UDim2.fromScale(1, 1),
 				Text = if won then "WINNER" else "",
-				TextSize = 26,
+				TextSize = 30,
 				TextColor3 = Theme.colors.good,
 				TextXAlignment = Enum.TextXAlignment.Center,
 				display = true,
 				weight = Enum.FontWeight.Bold,
+				ZIndex = 6,
 			}),
 		}),
-		Items = e("Frame", {
-			Position = UDim2.fromOffset(10, 194),
-			Size = UDim2.new(1, -20, 1, -204),
+		Result = landed and not props.finished and e(ResultCard, {
+			item = landed,
+			position = UDim2.fromOffset(8, 54 + REEL_HEIGHT + 8),
+		}) or nil,
+		Won = e("ScrollingFrame", {
+			Position = UDim2.fromOffset(8, 54 + REEL_HEIGHT + (if landed and not props.finished then 74 else 8)),
+			Size = UDim2.new(1, -16, 1, -(54 + REEL_HEIGHT + (if landed and not props.finished then 82 else 16))),
 			BackgroundTransparency = 1,
-		}, wonItems),
+			BorderSizePixel = 0,
+			CanvasSize = UDim2.new(),
+			AutomaticCanvasSize = Enum.AutomaticSize.Y,
+			ScrollBarThickness = 3,
+			ScrollBarImageColor3 = Theme.colors.stroke,
+		}, rows),
 	})
 end
 
@@ -737,16 +939,24 @@ local function BattleView(props)
 	local roundCount = #battle.rounds
 	local time, setTime = React.useBinding(0)
 	local revealed, setRevealed = React.useState(0)
-	local round = math.min(revealed + 1, roundCount)
-	local finished = revealed >= roundCount
+	-- the round being shown comes from the timeline, so a result stays up for HOLD_TIME before the next spin
+	local round, setRound = React.useState(1)
+	local finished, setFinished = React.useState(false)
 
 	React.useEffect(function()
 		local start = os.clock()
 		local lastRevealed = 0
+		local lastRound = 0
 		local connection
 		connection = RunService.RenderStepped:Connect(function()
 			local t = os.clock() - start
 			setTime(t)
+			local currentRound = math.min(math.floor(t / ROUND_TIME) + 1, roundCount)
+			if currentRound ~= lastRound then
+				lastRound = currentRound
+				setRound(currentRound)
+				Sfx.play("whoosh", 1.1)
+			end
 			local nowRevealed = 0
 			for r = 1, roundCount do
 				if t >= (r - 1) * ROUND_TIME + SPIN_TIME then
@@ -756,10 +966,13 @@ local function BattleView(props)
 			if nowRevealed ~= lastRevealed then
 				lastRevealed = nowRevealed
 				setRevealed(nowRevealed)
-				Sfx.play(if nowRevealed >= roundCount then "revealRare" else "reveal")
-				if nowRevealed >= roundCount then
-					connection:Disconnect()
-				end
+				Sfx.play("reveal")
+			end
+			-- the last result stays up for HOLD_TIME too, then the winner is shown
+			if t >= roundCount * ROUND_TIME then
+				connection:Disconnect()
+				setFinished(true)
+				Sfx.play("revealRare")
 			end
 		end)
 		return function()
