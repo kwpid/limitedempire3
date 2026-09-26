@@ -10,6 +10,17 @@ local usePlayerState = require(script.Parent.Parent.Hooks.usePlayerState)
 local usePlayerAttribute = require(script.Parent.Parent.Hooks.usePlayerAttribute)
 local useTextWidth = require(script.Parent.Parent.Hooks.useTextWidth)
 local useSetting = require(script.Parent.Parent.Hooks.useSetting)
+local useBoosts = require(script.Parent.Parent.Hooks.useBoosts)
+
+-- "12:05" or "1:02:05"
+local function clock(seconds: number): string
+	seconds = math.max(0, math.floor(seconds))
+	local hours, minutes = seconds // 3600, (seconds % 3600) // 60
+	if hours > 0 then
+		return string.format("%d:%02d:%02d", hours, minutes, seconds % 60)
+	end
+	return string.format("%d:%02d", minutes, seconds % 60)
+end
 
 local e = React.createElement
 
@@ -34,6 +45,7 @@ local function Wallet(props)
 		then `+{Format.short(Income.perMinute(if type(level) == "number" then level else 1))}/MIN`
 		else ""
 	local showLuck = type(luck) == "number" and luck ~= 1
+	local boosts = useBoosts()
 
 	local amountText = Config.Currency.Symbol .. Format.commas(state.cash)
 	local luckText = if showLuck then string.upper(string.format("Luck %gx", luck)) else ""
@@ -50,8 +62,45 @@ local function Wallet(props)
 		BackgroundTransparency = 1,
 		ZIndex = 5,
 	}, {
-		Luck = if showLuck
+		-- luck and active boosts (with their timers) sit above the balance
+		Chips = e("Frame", {
+			Size = UDim2.fromOffset(0, LUCK_HEIGHT),
+			AutomaticSize = Enum.AutomaticSize.X,
+			BackgroundTransparency = 1,
+		}, (function()
+			local chips = {
+				Layout = e("UIListLayout", {
+					FillDirection = Enum.FillDirection.Horizontal,
+					Padding = UDim.new(0, 4),
+					SortOrder = Enum.SortOrder.LayoutOrder,
+				}),
+			}
+			for index, boost in boosts do
+				chips["Boost" .. boost.kind] = e("Frame", {
+					LayoutOrder = index,
+					Size = UDim2.fromOffset(0, LUCK_HEIGHT),
+					AutomaticSize = Enum.AutomaticSize.X,
+					BackgroundColor3 = Theme.colors.topbar,
+					BackgroundTransparency = 0.05,
+					BorderSizePixel = 0,
+				}, {
+					Corner = e("UICorner", { CornerRadius = Theme.radius }),
+					Stroke = e("UIStroke", { Color = boost.color, Transparency = 0.4 }),
+					Padding = e("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) }),
+					Label = e(Text, {
+						Size = UDim2.fromScale(0, 1),
+						AutomaticSize = Enum.AutomaticSize.X,
+						Text = `{boost.multiplier}x {boost.name}  {clock(boost.remaining)}`,
+						TextSize = LUCK_SIZE - 2,
+						TextColor3 = boost.color:Lerp(Color3.new(1, 1, 1), 0.25),
+						TextTruncate = Enum.TextTruncate.None,
+						display = true,
+					}),
+				})
+			end
+			chips.Luck = if showLuck
 			then e("Frame", {
+				LayoutOrder = 0,
 				Size = UDim2.fromOffset(luckWidth + 20, LUCK_HEIGHT),
 				BackgroundColor3 = Theme.colors.topbar,
 				BackgroundTransparency = 0.05,
@@ -69,7 +118,9 @@ local function Wallet(props)
 					display = true,
 				}),
 			})
-			else nil,
+			else nil
+			return chips
+		end)()),
 		Strip = e("Frame", {
 			AnchorPoint = Vector2.new(0, 1),
 			Position = UDim2.fromScale(0, 1),

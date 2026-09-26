@@ -5,6 +5,7 @@ local ReactRoblox = require(ReplicatedStorage.Packages.ReactRoblox)
 local Shared = ReplicatedStorage.Shared
 local CaseRegistry = require(Shared.Cases.CaseRegistry)
 local Config = require(Shared.Config)
+local DailyLogin = require(Shared.Progress.DailyLogin)
 local Format = require(Shared.Util.Format)
 local ItemRegistry = require(Shared.Items.ItemRegistry)
 local Traits = require(Shared.Modifiers.Traits)
@@ -21,6 +22,8 @@ local InventoryPage = require(script.Parent.Pages.InventoryPage)
 local AdminPage = require(script.Parent.Pages.AdminPage)
 local SettingsPage = require(script.Parent.Pages.SettingsPage)
 local StatsPage = require(script.Parent.Pages.StatsPage)
+local CodesPage = require(script.Parent.Pages.CodesPage)
+local DailyPage = require(script.Parent.Pages.DailyPage)
 local CosmeticsPage = require(script.Parent.Pages.CosmeticsPage)
 local DataEditorPage = require(script.Parent.Pages.DataEditorPage)
 local GamesPage = require(script.Parent.Pages.GamesPage)
@@ -44,6 +47,7 @@ local ClientSettings = require(script.Parent.Parent.Controllers.ClientSettings)
 local Notifications = require(script.Parent.Parent.Controllers.Notifications)
 local Sfx = require(script.Parent.Parent.Controllers.Sfx)
 local Perf = require(script.Parent.Parent.Controllers.Perf)
+local Daily = require(script.Parent.Parent.Controllers.Daily)
 
 local e = React.createElement
 
@@ -54,6 +58,7 @@ local INVENTORY_TABS = {
 }
 local SETTINGS_TABS = {
 	{ id = "settings", text = "Settings" },
+	{ id = "codes", text = "Codes" },
 	{ id = "stats", text = "Stats for Nerds" },
 }
 local ADMIN_TABS = {
@@ -62,7 +67,10 @@ local ADMIN_TABS = {
 }
 local TAB_HEIGHT = 32
 -- settings sits in the Roblox topbar (TopbarPlus), next to Roblox's own buttons
-local SETTINGS_ICON = { image = "rbxasset://textures/ui/Settings/MenuBarIcons/GameSettingsTab.png", caption = "Settings" }
+local SETTINGS_ICON =
+	{ image = "rbxasset://textures/ui/Settings/MenuBarIcons/GameSettingsTab.png", caption = "Settings", order = 2 }
+-- daily rewards, with a notice dot while a claim is waiting
+local DAILY_ICON = { label = "Daily", caption = "Daily rewards", order = 1 }
 
 local function playReveal(item)
 	local traits = Traits.of(item)
@@ -138,6 +146,14 @@ local function App(props)
 	local autoRunning, setAutoRunning = React.useState(false)
 	local autoCount, setAutoCount = React.useState(0)
 	local trades = useTrades()
+	local dailyView, setDailyView = React.useState(Daily.get())
+	React.useLayoutEffect(function()
+		setDailyView(Daily.get())
+		local connection = Daily.changed:Connect(setDailyView)
+		return function()
+			connection:Disconnect()
+		end
+	end, {})
 	local screen = useScreen()
 	-- the open trade composer: nil, or { counter? } (a new trade or a counter to one)
 	local composing, setComposing = React.useState(nil)
@@ -275,6 +291,26 @@ local function App(props)
 			setSelectedCaseId(nil)
 		end
 	end, {})
+
+	useTopbarIcon(DAILY_ICON, page == "daily", function(selected: boolean)
+		if selected then
+			Sfx.play("tab")
+			navigate("daily")
+		else
+			setPage(function(current)
+				return if current == "daily" then nil else current
+			end)
+		end
+	end, not focused, dailyView ~= nil and dailyView.claimable)
+
+	-- the daily rewards window opens by itself once per session when a claim is waiting
+	local dailyShown = React.useRef(false)
+	React.useEffect(function()
+		if dailyView and dailyView.claimable and not dailyShown.current then
+			dailyShown.current = true
+			navigate("daily")
+		end
+	end, { dailyView } :: { any })
 
 	useTopbarIcon(SETTINGS_ICON, page == "settings", function(selected: boolean)
 		if selected then
@@ -605,6 +641,14 @@ local function App(props)
 				visible = page == "season",
 			}),
 		}),
+		DailyWindow = e(Window, {
+			visible = page == "daily",
+			title = "Daily Rewards",
+			subtitle = `{#DailyLogin.REWARDS} day calendar`,
+			onClose = close,
+		}, {
+			Page = page == "daily" and e(DailyPage, { view = dailyView }) or nil,
+		}),
 		SettingsWindow = e(Window, {
 			visible = page == "settings",
 			title = "Settings",
@@ -629,6 +673,7 @@ local function App(props)
 				}, {
 					Page = e(SettingsPage),
 				}),
+				Codes = page == "settings" and settingsTab == "codes" and e(CodesPage) or nil,
 				-- live numbers (fps, ping) only update while the tab is open
 				Stats = page == "settings" and settingsTab == "stats" and e(StatsPage, {
 					stats = state.stats,

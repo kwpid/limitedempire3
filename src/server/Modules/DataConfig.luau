@@ -37,6 +37,9 @@ function DataConfig.template()
 		stats = PlayerStats.defaults(),
 		trades = {},
 		tradeOutbox = {},
+		boosts = {},
+		codes = {},
+		login = { streak = 0, lastClaimDay = 0 },
 	}
 end
 

@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Income = require(ReplicatedStorage.Shared.Economy.Income)
 local PlayerDataService = require(script.Parent.PlayerDataService)
+local BoostService = require(script.Parent.BoostService)
 
 local IncomeService = {}
 
@@ -16,7 +17,9 @@ local nextPay: { [Player]: number } = {}
 
 local function pay(player: Player)
 	local level = player:GetAttribute("Level")
-	local amount = Income.perMinute(if type(level) == "number" then level else 1)
+	local amount = math.floor(
+		Income.perMinute(if type(level) == "number" then level else 1) * BoostService:Multiplier(player, "cash")
+	)
 	PlayerDataService:AddCash(player, amount)
 	PlayerDataService:AddStats(player, { passiveEarned = amount })
 end

@@ -34,7 +34,6 @@ Seasons.SOFT_RESET_CAP = 3_500
 Seasons.GRACE_DAYS = 2
 Seasons.DECAY_RATE = 0.08
 
-Seasons.DAILY_LOGIN_SP = 25
 
 Seasons.LEADERBOARD_MIN_SP = 50_000
 Seasons.LEADERBOARD_ALL_RANKS = false

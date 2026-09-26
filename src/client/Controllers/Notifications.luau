@@ -100,8 +100,6 @@ function Notifications.start()
 			end
 		elseif kind == "decay" then
 			Notifications.push(`You lost {Format.commas(payload.lost)} SP to inactivity`, PROGRESS_COLORS.decay)
-		elseif kind == "login" then
-			Notifications.push(`Daily login: +{payload.sp} SP, +{payload.xp} XP`, PROGRESS_COLORS.quest)
 		end
 	end)
 end

@@ -2,7 +2,8 @@
 --   ProgressService:CaseOpened(player, case, item) (CaseService and case battles)
 --   ProgressService:Track(player, metric, amount, xp?) (games, selling; see Shared/Progress/Quests for metrics)
 -- it pays xp (Shared/Progress/Career, milestones unlock titles and name styles), Season Points
--- (Shared/Progress/SeasonPoints, times the event multiplier) and quest rewards, handles the daily login bonus,
+-- (Shared/Progress/SeasonPoints, times the event multiplier) and quest rewards (the daily login calendar lives in
+-- DailyService),
 -- new daily and weekly quests, the season change (soft reset) and inactivity decay, and sends the progress to the
 -- player ("progress" delta) plus toasts (Net.events.ProgressEvent). Level and Rank are mirrored to player
 -- attributes for overheads.
@@ -29,6 +30,7 @@ local Valuation = require(Shared.Modifiers.Valuation)
 local CosmeticService = require(script.Parent.CosmeticService)
 local LeaderboardService = require(script.Parent.LeaderboardService)
 local PlayerDataService = require(script.Parent.PlayerDataService)
+local BoostService = require(script.Parent.BoostService)
 
 local PREMIUM_CASE_PRICE = 15_000
 local CHECK_INTERVAL = 60
@@ -83,6 +85,7 @@ local function addXp(player: Player, data, amount: number)
 	if amount <= 0 then
 		return
 	end
+	amount *= BoostService:Multiplier(player, "xp")
 	local before = Career.fromXp(data.career.xp)
 	data.career.xp += math.floor(amount)
 	local after = Career.fromXp(data.career.xp)
@@ -102,7 +105,9 @@ local function addXp(player: Player, data, amount: number)
 end
 
 local function addSp(player: Player, data, amount: number, useMultiplier: boolean)
-	local gained = math.floor(amount * (if useMultiplier then spMultiplier else 1) + 0.5)
+	-- the event multiplier and an sp boost apply to Season Points the player earns (not admin grants)
+	local multiplier = if useMultiplier then spMultiplier * BoostService:Multiplier(player, "sp") else 1
+	local gained = math.floor(amount * multiplier + 0.5)
 	if gained <= 0 then
 		return
 	end
@@ -122,7 +127,7 @@ local function grant(player: Player, data, quest: Quests.Quest)
 	addXp(player, data, reward.xp or 0)
 	addSp(player, data, reward.sp or 0, true)
 	if reward.cash and reward.cash > 0 then
-		PlayerDataService:AddCash(player, reward.cash)
+		PlayerDataService:AddCash(player, math.floor(reward.cash * BoostService:Multiplier(player, "cash")))
 	end
 	if reward.title then
 		CosmeticService:Unlock(player, "title", reward.title)
@@ -244,7 +249,7 @@ local function endSeason(player: Player, data, placement: number?)
 	notify(player, "newSeason", { name = Seasons.name(current), sp = season.sp })
 end
 
--- season change, inactivity decay and the daily login bonus
+-- season change and inactivity decay
 local function refreshSeason(player: Player, data, placement: number?)
 	local season = data.season
 	if season.id ~= Seasons.current() then
@@ -262,13 +267,6 @@ local function refreshSeason(player: Player, data, placement: number?)
 		end
 	end
 
-	if season.lastLoginDay ~= today then
-		season.lastLoginDay = today
-		addSp(player, data, Seasons.DAILY_LOGIN_SP, true)
-		addXp(player, data, Career.XP.dailyLogin)
-		track(player, data, "logins", 1)
-		notify(player, "login", { sp = Seasons.DAILY_LOGIN_SP, xp = Career.XP.dailyLogin })
-	end
 end
 
 local function withData(player: Player, fn: (any) -> ())

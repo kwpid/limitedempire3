@@ -53,6 +53,10 @@ function Actions.cashGame(gameId: string, bet: number, option: any): Types.Resul
 	return invoke(Net.functions.CashGame, gameId, bet, option)
 end
 
+function Actions.redeemCode(code: string): Types.Result<any>
+	return invoke(Net.functions.RedeemCode, code)
+end
+
 function Actions.setCosmetic(kind: string, id: string): Types.Result<nil>
 	return invoke(Net.functions.SetCosmetic, kind, id)
 end

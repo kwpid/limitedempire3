@@ -27,6 +27,7 @@ local ItemFactory = require(ServerScriptService.Server.Modules.ItemFactory)
 local ItemModelService = require(script.Parent.ItemModelService)
 local PlayerDataService = require(script.Parent.PlayerDataService)
 local ProgressService = require(script.Parent.ProgressService)
+local BoostService = require(script.Parent.BoostService)
 
 local GameService = {}
 
@@ -224,6 +225,8 @@ function GameService:HiLoGuess(player: Player, choice: any): Types.Result<any>
 		daily.hiloEarned += reward
 	end
 	if reward > 0 then
+		-- a cash boost pays extra on top, the daily cap counts the base reward
+		reward = math.floor(reward * BoostService:Multiplier(player, "cash"))
 		PlayerDataService:AddCash(player, reward)
 	end
 	local state = PlayerDataService:Get(player)
