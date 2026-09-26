@@ -38,6 +38,24 @@ export type PlayerState = {
 	version: number,
 }
 
+-- one trade as a player sees it (each side keeps its own copy in its saved data, see TradeService).
+-- give is what this player gives, get what they get. status: pending (waiting on the receiver), processing
+-- (accepted, the items are on their way), completed, declined, countered, cancelled or inactive (items gone,
+-- expired or failed). escrow holds the receiver's items while an accepted trade is processing.
+export type Trade = {
+	id: string,
+	direction: "inbound" | "outbound",
+	partnerId: number,
+	partnerName: string,
+	status: string,
+	give: { ItemInstance },
+	get: { ItemInstance },
+	createdAt: number,
+	updatedAt: number,
+	note: string?,
+	escrow: { ItemInstance }?,
+}
+
 export type Result<T> = {
 	ok: boolean,
 	err: string?,

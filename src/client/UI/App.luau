@@ -24,6 +24,8 @@ local CosmeticsPage = require(script.Parent.Pages.CosmeticsPage)
 local DataEditorPage = require(script.Parent.Pages.DataEditorPage)
 local GamesPage = require(script.Parent.Pages.GamesPage)
 local SeasonPage = require(script.Parent.Pages.SeasonPage)
+local TradesPage = require(script.Parent.Pages.Trades.TradesPage)
+local TradeComposer = require(script.Parent.Pages.Trades.TradeComposer)
 local TabBar = require(script.Parent.Components.TabBar)
 local OpeningOverlay = require(script.Parent.Opening.OpeningOverlay)
 local RareReveal = require(script.Parent.Opening.RareReveal)
@@ -31,6 +33,7 @@ local InspectView = require(script.Parent.Inspect.InspectView)
 local usePlayerState = require(script.Parent.Hooks.usePlayerState)
 local useIsAdmin = require(script.Parent.Hooks.useIsAdmin)
 local useFocusMode = require(script.Parent.Hooks.useFocusMode)
+local useTrades = require(script.Parent.Hooks.useTrades)
 local Actions = require(script.Parent.Parent.Controllers.Actions)
 local ClientSettings = require(script.Parent.Parent.Controllers.ClientSettings)
 local Notifications = require(script.Parent.Parent.Controllers.Notifications)
@@ -118,6 +121,9 @@ local function App(props)
 	local autoOpen, setAutoOpen = React.useState(false)
 	local autoRunning, setAutoRunning = React.useState(false)
 	local autoCount, setAutoCount = React.useState(0)
+	local trades = useTrades()
+	-- the open trade composer: nil, or { counter? } (a new trade or a counter to one)
+	local composing, setComposing = React.useState(nil)
 
 	local inspectItem = inspectUid and state.inventory[inspectUid]
 	local focused = opening ~= nil or inspectItem ~= nil
@@ -399,12 +405,19 @@ local function App(props)
 	for _ in state.inventory do
 		inventoryCount += 1
 	end
+	local inboundTrades = 0
+	for _, trade in trades do
+		if trade.direction == "inbound" and trade.status == "pending" then
+			inboundTrades += 1
+		end
+	end
 
 	local main = {
 		Wallet = e(Wallet),
 		BottomNav = e(BottomNav, {
 			page = page,
 			onNavigate = navigate,
+			badges = { trades = inboundTrades },
 		}),
 		CasesWindow = e(Window, {
 			visible = page == "cases",
@@ -489,6 +502,42 @@ local function App(props)
 				pinned = state.pinned,
 				onInspect = setInspectUid,
 			}),
+		}),
+		TradesWindow = e(Window, {
+			visible = page == "trades",
+			title = if composing and composing.counter
+				then "Counter trade"
+				elseif composing then "New trade"
+				else "Trades",
+			subtitle = if composing
+				then `up to {Config.Trade.MaxItems} items a side`
+				elseif inboundTrades > 0 then `{inboundTrades} waiting on you`
+				else nil,
+			onBack = if composing
+				then function()
+					setComposing(nil)
+				end
+				else nil,
+			onClose = close,
+		}, {
+			List = e("Frame", {
+				Size = UDim2.fromScale(1, 1),
+				BackgroundTransparency = 1,
+				Visible = composing == nil,
+			}, {
+				Page = e(TradesPage, {
+					trades = trades,
+					inventory = state.inventory,
+					onCompose = setComposing,
+				}),
+			}),
+			Composer = page == "trades" and composing and e(TradeComposer, {
+				inventory = state.inventory,
+				counter = composing.counter,
+				onDone = function()
+					setComposing(nil)
+				end,
+			}) or nil,
 		}),
 		SeasonWindow = e(Window, {
 			visible = page == "season",

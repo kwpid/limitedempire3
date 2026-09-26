@@ -35,6 +35,8 @@ function DataConfig.template()
 			nameStyle = { equipped = "default", unlocked = {} },
 		},
 		stats = PlayerStats.defaults(),
+		trades = {},
+		tradeOutbox = {},
 	}
 end
 

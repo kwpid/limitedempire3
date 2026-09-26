@@ -10,6 +10,7 @@ local EVENTS = {
 	"Announce",
 	"BattleUpdate",
 	"ProgressEvent",
+	"TradeUpdate",
 }
 
 local FUNCTIONS = {
@@ -29,6 +30,7 @@ local FUNCTIONS = {
 	"BattleAction",
 	"BattleLobbies",
 	"GetLeaderboard",
+	"TradeAction",
 }
 
 local FOLDER_NAME = "Remotes"

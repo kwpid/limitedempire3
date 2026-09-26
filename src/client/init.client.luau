@@ -16,6 +16,7 @@ local Perf = require(Controllers.Perf)
 local EffectsToggle = require(Controllers.EffectsToggle)
 local ChatTags = require(Controllers.ChatTags)
 local Battles = require(Controllers.Battles)
+local Trades = require(Controllers.Trades)
 local App = require(script:WaitForChild("UI"):WaitForChild("App"))
 local OverheadLayer = require(script.UI:WaitForChild("Overheads"):WaitForChild("OverheadLayer"))
 
@@ -33,6 +34,7 @@ AvatarWear.start()
 EffectsToggle.start()
 ChatTags.start()
 Battles.start()
+Trades.start()
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 
