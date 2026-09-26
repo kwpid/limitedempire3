@@ -1,6 +1,8 @@
 -- every player setting: its section, how the settings window shows it and its default. saved with the player's
 -- data on the server (so settings follow the player) and replicated to their client.
--- kinds: "toggle" (boolean), "choice" (one of options[].value), "tiers" (list of tier ids, the auto-sell picker).
+-- kinds: "toggle" (boolean), "choice" (one of options[].value), "tiers" (list of tier ids, the auto-sell picker),
+-- "cases" (up to MAX_FAVORITE_CASES case ids, the favorites on the cases page). hidden = true keeps a setting out of
+-- the settings window (it is changed somewhere else).
 --
 -- api: Settings.list, Settings.sections (ordered names), Settings.sectionInfo[name] -> { description },
 -- Settings.get(id) -> def?, Settings.defaults() -> { [id]: value },
@@ -13,6 +15,7 @@ local Serial = require(Shared.Modifiers.Serial)
 local ItemRegistry = require(Shared.Items.ItemRegistry)
 local Tiers = require(Shared.Items.Tiers)
 local Traits = require(Shared.Modifiers.Traits)
+local CaseRegistry = require(Shared.Cases.CaseRegistry)
 
 export type Option = { value: any, label: string }
 
@@ -24,9 +27,12 @@ export type Def = {
 	description: string?,
 	default: any,
 	options: { Option }?,
+	hidden: boolean?,
 }
 
 local Settings = {}
+
+Settings.MAX_FAVORITE_CASES = 5
 
 Settings.sections = { "Gameplay", "Auto-sell", "Trading", "Interface", "Graphics", "Audio", "Notifications", "Advanced" }
 
@@ -102,6 +108,14 @@ Settings.list = {
 		label = "Quick coinflip and dice",
 		description = "Shorter coin flip and dice roll animations.",
 		default = false,
+	},
+	{
+		id = "favoriteCases",
+		section = "Gameplay",
+		kind = "cases",
+		label = "Favorite cases",
+		default = {},
+		hidden = true,
 	},
 	{
 		id = "autoSellTiers",
@@ -295,6 +309,19 @@ function Settings.clean(id: any, value: any): any
 				seen[tierId] = true
 				table.insert(list, tierId)
 			end
+		end
+		return list
+	elseif def.kind == "cases" then
+		if type(value) ~= "table" or #value > Settings.MAX_FAVORITE_CASES then
+			return nil
+		end
+		local list, seen = {}, {}
+		for _, caseId in value do
+			if type(caseId) ~= "string" or not CaseRegistry.get(caseId) or seen[caseId] then
+				return nil
+			end
+			seen[caseId] = true
+			table.insert(list, caseId)
 		end
 		return list
 	end

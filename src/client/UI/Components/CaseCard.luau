@@ -1,5 +1,6 @@
 -- a case on the cases page: the case color glowing up from the bottom, its icon, name, price and the best item
--- you can see in it, plus a Starter tag on cases with a lower house edge. props: case, cash, layoutOrder, onSelect(caseId)
+-- you can see in it, plus a Starter tag on cases with a lower house edge, a star to favorite it, and the item a search
+-- matched in it. props: case, cash, layoutOrder, onSelect(caseId), favorite?, onFavorite?(caseId), match? (text)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -100,6 +101,42 @@ local function CaseCard(props)
 				TextSize = 12,
 				TextTruncate = Enum.TextTruncate.None,
 				display = true,
+				ZIndex = 4,
+			}),
+		}) or nil,
+		Star = props.onFavorite and e("TextButton", {
+			AnchorPoint = Vector2.new(1, 0),
+			Position = UDim2.new(1, -6, 0, 6),
+			Size = UDim2.fromOffset(28, 28),
+			BackgroundTransparency = 1,
+			Text = if props.favorite then "★" else "☆",
+			FontFace = Theme.font(Enum.FontWeight.Bold),
+			TextSize = 22,
+			TextColor3 = if props.favorite then Theme.colors.marker elseif hovered then Theme.colors.text else Theme.colors.textFaint,
+			TextStrokeTransparency = 0.6,
+			ZIndex = 4,
+			[React.Event.Activated] = function()
+				Sfx.play("tab")
+				props.onFavorite(case.id)
+			end,
+		}) or nil,
+		Match = props.match and e("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.new(0.5, 0, 0, 112),
+			Size = UDim2.new(1, -16, 0, 20),
+			BackgroundColor3 = Theme.colors.topbar,
+			BackgroundTransparency = 0.15,
+			BorderSizePixel = 0,
+			ZIndex = 3,
+		}, {
+			Corner = e("UICorner", { CornerRadius = Theme.radius }),
+			Label = e(Text, {
+				Position = UDim2.fromOffset(6, 0),
+				Size = UDim2.new(1, -12, 1, 0),
+				Text = `Has: {props.match}`,
+				TextSize = 11,
+				TextColor3 = Theme.colors.cash,
+				TextXAlignment = Enum.TextXAlignment.Center,
 				ZIndex = 4,
 			}),
 		}) or nil,
