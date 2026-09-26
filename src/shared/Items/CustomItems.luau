@@ -7,8 +7,8 @@
 
 return {
 	-- test item: a recolor of an existing roblox item. assetType is a guess (hat), change it if it is another kind
-	[88804150792706] = {
-		name = "Test Custom Item",
+	[97688070021673] = {
+		name = "Immortal Sword: Chroma Intent",
 		acronym = "",
 		rap = 250000,
 		value = 250000,
@@ -17,7 +17,7 @@ return {
 		year = 2026,
 		custom = true,
 	},
-	[102356151365854] = {
+	[79714900624693] = {
 		name = "2026 Bloxy Award (Alpha Reward)",
 		acronym = "",
 		rap = 0,
