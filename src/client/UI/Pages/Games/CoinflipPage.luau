@@ -16,9 +16,12 @@ local BetInput = require(script.Parent.BetInput)
 local Parts = require(script.Parent.CashGameParts)
 local Actions = require(script.Parent.Parent.Parent.Parent.Controllers.Actions)
 local Sfx = require(script.Parent.Parent.Parent.Parent.Controllers.Sfx)
+local useSetting = require(script.Parent.Parent.Parent.Hooks.useSetting)
 
 local e = React.createElement
 
+-- the quickCashGames setting uses QUICK_FLIP_TIME
+local QUICK_FLIP_TIME = 0.35
 local FLIP_TIME = 1.2
 local COIN_SIZE = 200
 local HISTORY_HEIGHT = 56
@@ -32,6 +35,7 @@ local function other(side: string): string
 end
 
 local function CoinflipPage(props)
+	local duration = if useSetting("quickCashGames") then QUICK_FLIP_TIME else FLIP_TIME
 	local bet, setBet = React.useState(1000)
 	local side, setSide = React.useState("heads")
 	local flipping, setFlipping = React.useState(false)
@@ -81,7 +85,7 @@ local function CoinflipPage(props)
 			local halfTurns = 10 + (if startFace == data.result then 0 else 1)
 			local started = os.clock()
 			while alive.current do
-				local p = math.clamp((os.clock() - started) / FLIP_TIME, 0, 1)
+				local p = math.clamp((os.clock() - started) / duration, 0, 1)
 				local angle = (1 - (1 - p) ^ 3) * halfTurns * math.pi
 				setSquash(math.max(math.abs(math.cos(angle)), 0.04))
 				local flips = math.floor((angle + math.pi / 2) / math.pi)

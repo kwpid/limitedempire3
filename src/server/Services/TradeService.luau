@@ -14,6 +14,8 @@
 -- anti-scam: a trade only goes through with the exact items both players saw. items are matched by uid and by
 -- fingerprint (item, float, serial, traits, stat tracker), so an item that changed since the trade was sent fails
 -- the trade instead of swapping in something else.
+-- players can turn off trade requests (the allowTrades setting): sending to them is refused up front, and an offer
+-- that arrives after they turned it off is declined as "closed".
 -- leaving: every step lives in saved data and messages, so either player can leave (or a server can crash) at any
 -- point. an accept is finished by the sender's server, or by this server opening their profile when they are
 -- offline, and the receiver gets their side when they are next loaded.
@@ -31,6 +33,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage.Shared
 local Config = require(Shared.Config)
 local Net = require(Shared.Net)
+local Settings = require(Shared.Settings)
 local Types = require(Shared.Types)
 local PlayerDataService = require(script.Parent.PlayerDataService)
 
@@ -56,7 +59,9 @@ local lastAction: { [Player]: number } = {}
 local lastLookup: { [Player]: { [string]: number } } = {}
 local lastSend: { [Player]: number } = {}
 local busy: { [Player]: boolean } = {}
-local inventoryCache: { [number]: { at: number, name: string, inventory: { [string]: ItemInstance } } } = {}
+local inventoryCache: {
+	[number]: { at: number, name: string, inventory: { [string]: ItemInstance }, allowTrades: boolean },
+} = {}
 
 local function deepCopy(value: any): any
 	if type(value) ~= "table" then
@@ -173,6 +178,15 @@ local function takeItems(ctx, uids: { string }): { ItemInstance }
 	return removed
 end
 
+local function addStat(ctx, id: string)
+	if ctx.player then
+		PlayerDataService:AddStats(ctx.player, { [id] = 1 })
+	else
+		ctx.data.stats = ctx.data.stats or {}
+		ctx.data.stats[id] = (ctx.data.stats[id] or 0) + 1
+	end
+end
+
 local function giveItems(ctx, items: { ItemInstance })
 	if ctx.player then
 		PlayerDataService:GiveItems(ctx.player, items)
@@ -258,27 +272,33 @@ local function contextOf(player: Player)
 	}
 end
 
--- another player's inventory: live when they are in this server, otherwise their saved data (cached for a moment)
-local function inventoryOf(userId: number): ({ [string]: ItemInstance }?, string?, string?)
+-- another player's inventory: live when they are in this server, otherwise their saved data (cached for a moment).
+-- returns inventory?, name?, err?, allowTrades
+local function inventoryOf(userId: number): ({ [string]: ItemInstance }?, string?, string?, boolean)
 	local here = Players:GetPlayerByUserId(userId)
 	local hereData = here and PlayerDataService:GetData(here)
 	if here and hereData then
-		return hereData.inventory, here.Name
+		return hereData.inventory, here.Name, nil, PlayerDataService:GetSettings(here).allowTrades ~= false
 	end
 	local cached = inventoryCache[userId]
 	if cached and os.clock() - cached.at < INVENTORY_CACHE_SECONDS then
-		return cached.inventory, cached.name
+		return cached.inventory, cached.name, nil, cached.allowTrades
 	end
 	local data, where = PlayerDataService:ViewUser(userId)
 	if where == "none" then
-		return nil, nil, "That player has never played"
+		return nil, nil, "That player has never played", false
 	elseif not data then
-		return nil, nil, "Couldn't load their inventory, try again"
+		return nil, nil, "Couldn't load their inventory, try again", false
 	end
 	local ok, name = pcall(Players.GetNameFromUserIdAsync, Players, userId)
-	local entry = { at = os.clock(), name = if ok then name else tostring(userId), inventory = data.inventory }
+	local entry = {
+		at = os.clock(),
+		name = if ok then name else tostring(userId),
+		inventory = data.inventory,
+		allowTrades = Settings.resolve(data.settings).allowTrades ~= false,
+	}
 	inventoryCache[userId] = entry
-	return entry.inventory, entry.name
+	return entry.inventory, entry.name, nil, entry.allowTrades
 end
 
 -- a clean list of up to MaxItems unique uids, nil if the list is malformed
@@ -317,9 +337,11 @@ local function createTrade(ctx, targetId: number, giveUids: { string }, getUids:
 		return nil, `You can only have {TRADE.MaxOutbound} trades waiting at once`
 	end
 
-	local theirs, name, err = inventoryOf(targetId)
+	local theirs, name, err, allowTrades = inventoryOf(targetId)
 	if not theirs then
 		return nil, err
+	elseif not allowTrades then
+		return nil, `{name} isn't accepting trades`
 	end
 	-- the lookup can yield, so the player's own items are checked after it (and on the data they have now, in case
 	-- they left and came back meanwhile)
@@ -507,6 +529,10 @@ local function handleMessage(ctx, message: any)
 		if trade or not fresh or not validItems(message.give) or not validItems(message.get) then
 			return
 		end
+		if Settings.resolve(ctx.data.settings).allowTrades == false then
+			ctx.send(message.fromId, { t = "decline", id = message.id, fromId = ctx.userId, reason = "closed" })
+			return
+		end
 		local name = if type(message.fromName) == "string" then message.fromName else tostring(message.fromId)
 		trades[message.id] = {
 			id = message.id,
@@ -529,6 +555,9 @@ local function handleMessage(ctx, message: any)
 			note = { text = `{trade.partnerName} countered your trade`, kind = "info" }
 		elseif message.reason == "inactive" then
 			setStatus(trade, "inactive", `{trade.partnerName} no longer had their items`)
+		elseif message.reason == "closed" then
+			setStatus(trade, "inactive", `{trade.partnerName} isn't accepting trades`)
+			note = { text = `{trade.partnerName} isn't accepting trades`, kind = "bad" }
 		else
 			setStatus(trade, "declined")
 			note = { text = `{trade.partnerName} declined your trade`, kind = "bad" }
@@ -566,6 +595,7 @@ local function handleMessage(ctx, message: any)
 			done.give = deepCopy(moved)
 			done.get = deepCopy(message.items)
 			setStatus(done, "completed")
+			addStat(ctx, "tradesCompleted")
 			ctx.send(message.fromId, { t = "complete", id = message.id, fromId = ctx.userId, items = deepCopy(moved) })
 			note = { text = `{done.partnerName} accepted your trade`, kind = "good" }
 		end
@@ -579,6 +609,7 @@ local function handleMessage(ctx, message: any)
 		trade.get = deepCopy(message.items)
 		trade.escrow = nil
 		setStatus(trade, "completed")
+		addStat(ctx, "tradesCompleted")
 		note = { text = `Trade with {trade.partnerName} completed`, kind = "good" }
 	elseif kind == "refund" then
 		if not trade or trade.direction ~= "inbound" or trade.status ~= "processing" then

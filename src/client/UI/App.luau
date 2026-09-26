@@ -20,6 +20,7 @@ local CaseDetails = require(script.Parent.Pages.CaseDetails)
 local InventoryPage = require(script.Parent.Pages.InventoryPage)
 local AdminPage = require(script.Parent.Pages.AdminPage)
 local SettingsPage = require(script.Parent.Pages.SettingsPage)
+local StatsPage = require(script.Parent.Pages.StatsPage)
 local CosmeticsPage = require(script.Parent.Pages.CosmeticsPage)
 local DataEditorPage = require(script.Parent.Pages.DataEditorPage)
 local GamesPage = require(script.Parent.Pages.GamesPage)
@@ -51,6 +52,10 @@ local INVENTORY_TABS = {
 	{ id = "titles", text = "Titles" },
 	{ id = "nameStyles", text = "Name Styles" },
 }
+local SETTINGS_TABS = {
+	{ id = "settings", text = "Settings" },
+	{ id = "stats", text = "Stats for Nerds" },
+}
 local ADMIN_TABS = {
 	{ id = "tools", text = "Tools" },
 	{ id = "data", text = "Player Data" },
@@ -77,8 +82,12 @@ local function playReveal(item)
 	end
 end
 
--- Exotic and Divine unboxes get the RareReveal cutscene (it plays its own sounds) before the item is shown
+-- Exotic and Divine unboxes get the RareReveal cutscene (it plays its own sounds) before the item is shown, unless
+-- the skipCutscenes setting is on
 local function hasCutscene(item): boolean
+	if ClientSettings.get("skipCutscenes") then
+		return false
+	end
 	local tier = ItemRegistry.tier(item.assetId)
 	return tier.id == "exotic" or tier.id == "divine"
 end
@@ -123,6 +132,7 @@ local function App(props)
 	local busy, setBusy = React.useState(false)
 	local inventoryTab, setInventoryTab = React.useState("items")
 	local adminTab, setAdminTab = React.useState("tools")
+	local settingsTab, setSettingsTab = React.useState("settings")
 	local selectedGame, setSelectedGame = React.useState(nil)
 	local autoOpen, setAutoOpen = React.useState(false)
 	local autoRunning, setAutoRunning = React.useState(false)
@@ -288,6 +298,13 @@ local function App(props)
 				local cutscene = hasCutscene(opening.item)
 				if not cutscene then
 					playReveal(opening.item)
+				end
+				-- the "stop auto-open on" setting: a good enough unbox ends the run
+				local stopAt = ClientSettings.get("autoOpenStopAt")
+				local tier = ItemRegistry.tier(opening.item.assetId)
+				if autoRunning and type(stopAt) == "number" and stopAt > 0 and tier.rank >= stopAt then
+					stopAuto()
+					Notifications.push(`Auto-open stopped: you unboxed {tier.name}`, tier.color)
 				end
 				setOpening(function(current)
 					if current and current.key == opening.key then
@@ -594,7 +611,30 @@ local function App(props)
 			subtitle = "saved to your account",
 			onClose = close,
 		}, {
-			Page = e(SettingsPage, { stats = state.stats }),
+			Tabs = e(TabBar, {
+				size = UDim2.new(1, 0, 0, TAB_HEIGHT),
+				tabs = SETTINGS_TABS,
+				value = settingsTab,
+				onChange = setSettingsTab,
+			}),
+			Content = e("Frame", {
+				Position = UDim2.fromOffset(0, TAB_HEIGHT + 10),
+				Size = UDim2.new(1, 0, 1, -(TAB_HEIGHT + 10)),
+				BackgroundTransparency = 1,
+			}, {
+				Settings = e("Frame", {
+					Size = UDim2.fromScale(1, 1),
+					BackgroundTransparency = 1,
+					Visible = settingsTab == "settings",
+				}, {
+					Page = e(SettingsPage),
+				}),
+				-- live numbers (fps, ping) only update while the tab is open
+				Stats = page == "settings" and settingsTab == "stats" and e(StatsPage, {
+					stats = state.stats,
+					cash = state.cash,
+				}) or nil,
+			}),
 		}),
 		AdminWindow = if isAdmin
 			then e(Window, {

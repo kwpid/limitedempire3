@@ -9,6 +9,7 @@ local Text = require(script.Parent.Text)
 local usePlayerState = require(script.Parent.Parent.Hooks.usePlayerState)
 local usePlayerAttribute = require(script.Parent.Parent.Hooks.usePlayerAttribute)
 local useTextWidth = require(script.Parent.Parent.Hooks.useTextWidth)
+local useSetting = require(script.Parent.Parent.Hooks.useSetting)
 
 local e = React.createElement
 
@@ -28,15 +29,17 @@ local function Wallet(props)
 	local luck = usePlayerAttribute("Luck")
 	local level = usePlayerAttribute("Level")
 	-- passive income, shown next to the balance label
-	local rateText = `+{Format.short(Income.perMinute(if type(level) == "number" then level else 1))}/MIN`
+	local showRate = useSetting("showIncomeRate") ~= false
+	local rateText = if showRate
+		then `+{Format.short(Income.perMinute(if type(level) == "number" then level else 1))}/MIN`
+		else ""
 	local showLuck = type(luck) == "number" and luck ~= 1
 
 	local amountText = Config.Currency.Symbol .. Format.commas(state.cash)
 	local luckText = if showLuck then string.upper(string.format("Luck %gx", luck)) else ""
 	local amountWidth = useTextWidth(amountText, DISPLAY_FONT, AMOUNT_SIZE)
-	local labelWidth = useTextWidth("BALANCE", DISPLAY_FONT, LABEL_SIZE)
-		+ 10
-		+ useTextWidth(rateText, DISPLAY_FONT, LABEL_SIZE)
+	local rateWidth = useTextWidth(rateText, DISPLAY_FONT, LABEL_SIZE)
+	local labelWidth = useTextWidth("BALANCE", DISPLAY_FONT, LABEL_SIZE) + (if showRate then 10 + rateWidth else 0)
 	local luckWidth = useTextWidth(luckText, DISPLAY_FONT, LUCK_SIZE)
 	local cardWidth = math.max(amountWidth, labelWidth, 90) + PAD_X * 2
 
