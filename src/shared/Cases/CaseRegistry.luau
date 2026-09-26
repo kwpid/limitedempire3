@@ -54,7 +54,17 @@ local function roundUpNice(n: number): number
 end
 
 -- every item of the case's series, then guestCount picks per guest theme among its items worth guestMinValue+.
--- seriesOf remembers which series each item counts as when it drops from this case.
+-- a case that ends up with no special item gets the least used one (ties broken by a stable hash), so every case
+-- has at least one. seriesOf remembers which series each item counts as when it drops from this case.
+local specialUses: { [number]: number } = {}
+local specialPool: { number } = {}
+for assetId in ItemRegistry.all() do
+	if ItemRegistry.isEquippable(assetId) and ItemRegistry.baseValue(assetId) >= CaseData.specialMinValue then
+		table.insert(specialPool, assetId)
+	end
+end
+table.sort(specialPool)
+
 local function gather(def): ({ number }, { [number]: string })
 	local assetIds = {}
 	local seriesOf = {}
@@ -87,6 +97,27 @@ local function gather(def): ({ number }, { [number]: string })
 				table.insert(assetIds, assetId)
 			end
 		end
+	end
+
+	local hasSpecial = false
+	for _, assetId in assetIds do
+		if ItemRegistry.baseValue(assetId) >= CaseData.specialMinValue then
+			hasSpecial = true
+			specialUses[assetId] = (specialUses[assetId] or 0) + 1
+		end
+	end
+	if not hasSpecial and #specialPool > 0 then
+		local best, bestUses, bestHash = nil, math.huge, math.huge
+		for _, assetId in specialPool do
+			local uses = specialUses[assetId] or 0
+			local h = StableHash.number(assetId, salt)
+			if uses < bestUses or (uses == bestUses and h < bestHash) then
+				best, bestUses, bestHash = assetId, uses, h
+			end
+		end
+		seriesOf[best] = SeriesRegistry.of(best)[1]
+		table.insert(assetIds, best)
+		specialUses[best] = bestUses + 1
 	end
 	return assetIds, seriesOf
 end

@@ -34,7 +34,8 @@ function ItemEffects.apply(container: Instance, item: Types.ItemInstance)
 	clear(handle)
 
 	local band = Condition.fromFloat(item.float)
-	local trait = Traits.get(item.trait)
+	local traitIds = Traits.of(item)
+	local trait = Traits.get(traitIds[1])
 	local mesh = handle:FindFirstChildOfClass("SpecialMesh")
 	if mesh and mesh.MeshType == Enum.MeshType.FileMesh then
 		mesh.VertexColor = if trait and trait.meshTint
@@ -46,19 +47,26 @@ function ItemEffects.apply(container: Instance, item: Types.ItemInstance)
 		return
 	end
 
-	local particles = mark(Instance.new("ParticleEmitter"))
-	particles.Texture = PARTICLE_TEXTURE
-	particles.Color = trait.color
-	particles.Rate = trait.particleRate
-	particles.Lifetime = NumberRange.new(0.6, 1.2)
-	particles.Speed = NumberRange.new(0.4, 1.4)
-	particles.SpreadAngle = Vector2.new(180, 180)
-	particles.LightEmission = 1
-	particles.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.25),
-		NumberSequenceKeypoint.new(1, 0),
-	})
-	particles.Parent = handle
+	-- one emitter per trait, stacked traits emit a bit less so the best trait stays the main look
+	for index, id in traitIds do
+		local stacked = Traits.get(id)
+		if not stacked then
+			continue
+		end
+		local particles = mark(Instance.new("ParticleEmitter"))
+		particles.Texture = PARTICLE_TEXTURE
+		particles.Color = stacked.color
+		particles.Rate = if index == 1 then stacked.particleRate else stacked.particleRate * 0.6
+		particles.Lifetime = NumberRange.new(0.6, 1.2)
+		particles.Speed = NumberRange.new(0.4, 1.4)
+		particles.SpreadAngle = Vector2.new(180, 180)
+		particles.LightEmission = 1
+		particles.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.25),
+			NumberSequenceKeypoint.new(1, 0),
+		})
+		particles.Parent = handle
+	end
 
 	if trait.light then
 		local light = mark(Instance.new("PointLight"))

@@ -32,8 +32,9 @@ end
 function Notifications.start()
 	Net.events.Announce.OnClientEvent:Connect(function(displayName: string, item)
 		local info = ItemRegistry.get(item.assetId)
-		local trait = Traits.get(item.trait)
-		local name = (trait and (trait.name .. " ") or "") .. (info and info.name or "an item")
+		local traits = Traits.of(item)
+		local trait = Traits.get(traits[1])
+		local name = Traits.fullName(traits, info and info.name or "an item")
 		local color = trait and trait.uiColor or ItemRegistry.tier(item.assetId).color
 		Notifications.push(`{displayName} unboxed {name} ({Format.cash(Valuation.value(item))})`, color)
 	end)

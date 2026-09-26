@@ -102,7 +102,9 @@ local function InspectView(props)
 
 	local info = ItemRegistry.get(item.assetId)
 	local tier = ItemRegistry.tier(item.assetId)
-	local trait = Traits.get(item.trait)
+	local traitIds = Traits.of(item)
+	local trait = Traits.get(traitIds[1])
+	local stacked = Traits.get(traitIds[2])
 	local breakdown = Valuation.breakdown(item)
 	local serialLabel = Serial.label(item.serial)
 	local accent = trait and trait.uiColor or tier.color
@@ -183,10 +185,10 @@ local function InspectView(props)
 				position = UDim2.fromOffset(0, 0),
 			}),
 			Name = e(TraitText, {
-				trait = item.trait,
+				trait = traitIds[1],
 				Position = UDim2.fromOffset(0, 20),
 				Size = UDim2.new(1, 0, 0, 44),
-				Text = (trait and (trait.name .. " ") or "") .. (info and info.name or "Unknown"),
+				Text = Traits.fullName(traitIds, info and info.name or "Unknown"),
 				TextSize = 40,
 				TextColor3 = if trait then trait.uiColor else Theme.colors.text,
 				display = true,
@@ -291,8 +293,11 @@ local function InspectView(props)
 					Trait = e(Row, {
 						layoutOrder = 2,
 						label = "Trait",
-						trait = item.trait,
-						value = if trait then string.format("%s  x%.2f", trait.name, breakdown.trait) else "None",
+						trait = traitIds[1],
+						value = if stacked
+							then string.format("%s  x%.2f total", Traits.label(traitIds), breakdown.trait)
+							elseif trait then string.format("%s  x%.2f", trait.name, breakdown.trait)
+							else "None",
 						color = if trait then trait.uiColor else Theme.colors.textFaint,
 					}),
 					Base = e(Row, {

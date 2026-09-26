@@ -62,7 +62,7 @@ local function CaseDetails(props)
 	if case.specialCount > 0 then
 		tiles.Special = e(SpecialTile, {
 			layoutOrder = 0,
-			subtitle = `{Format.percent(case.specialChance)}  ·  {case.specialCount} items`,
+			subtitle = Format.percent(case.specialChance),
 		})
 	end
 	for index = first, last do

@@ -25,11 +25,13 @@ function ItemFactory.roll(caseId: string, luck: number?): number
 end
 
 function ItemFactory.create(assetId: number, caseId: string?, luck: number?, owner: Player?): Types.ItemInstance
+	local traits = Traits.rollAll(rng, luck)
 	return {
 		uid = HttpService:GenerateGUID(false),
 		assetId = assetId,
 		float = Condition.rollFloat(rng),
-		trait = Traits.roll(rng, luck),
+		trait = traits[1],
+		traits = if #traits > 0 then traits else nil,
 		serial = SerialService:Next(assetId),
 		caseId = caseId,
 		obtainedAt = os.time(),

@@ -29,8 +29,14 @@ local function fail(err: string): Types.Result<Types.ItemInstance>
 end
 
 local function shouldAnnounce(item: Types.ItemInstance): boolean
-	local trait = Traits.get(item.trait)
-	return (trait ~= nil and trait.announce) or Valuation.value(item) >= Config.AnnounceValue
+	local traits = Traits.of(item)
+	for _, id in traits do
+		local trait = Traits.get(id)
+		if trait and trait.announce then
+			return true
+		end
+	end
+	return #traits > 1 or Valuation.value(item) >= Config.AnnounceValue
 end
 
 function CaseService:Open(player: Player, caseId: any): Types.Result<Types.ItemInstance>

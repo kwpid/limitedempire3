@@ -21,7 +21,7 @@ local function CasesPage(props)
 			subtitle = Format.cash(case.price),
 			subtitleColor = if affordable then Theme.colors.cash else Theme.colors.bad,
 			accent = case.color,
-			tagText = `{#case.items} items`,
+			tagText = `{#case.items - case.specialCount} items`,
 			tagColor = Theme.colors.textDim,
 			onSelect = props.onSelect,
 		})

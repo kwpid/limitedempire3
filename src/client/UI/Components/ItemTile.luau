@@ -2,6 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local React = require(ReplicatedStorage.Packages.React)
 local ItemRegistry = require(ReplicatedStorage.Shared.Items.ItemRegistry)
+local Traits = require(ReplicatedStorage.Shared.Modifiers.Traits)
 local Theme = require(script.Parent.Parent.Theme)
 local Text = require(script.Parent.Text)
 local TraitText = require(script.Parent.TraitText)
@@ -17,6 +18,7 @@ local function Corner(props)
 		trait = props.trait,
 		Position = props.position,
 		AnchorPoint = props.anchorPoint,
+		LayoutOrder = props.layoutOrder,
 		Size = UDim2.fromOffset(0, 14),
 		AutomaticSize = Enum.AutomaticSize.X,
 		Text = props.text,
@@ -28,6 +30,35 @@ local function Corner(props)
 		weight = Enum.FontWeight.Bold,
 		ZIndex = 3,
 	})
+end
+
+-- trait names stacked in the top left corner, best first, each styled after its trait
+local function TraitBadges(props)
+	local children = {
+		Layout = e("UIListLayout", {
+			FillDirection = Enum.FillDirection.Vertical,
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		}),
+	}
+	for index, id in props.traits do
+		local trait = Traits.get(id)
+		if trait then
+			children["Trait" .. index] = e(Corner, {
+				layoutOrder = index,
+				text = trait.name,
+				color = trait.uiColor,
+				trait = id,
+				alignment = Enum.TextXAlignment.Left,
+			})
+		end
+	end
+	return e("Frame", {
+		Position = UDim2.fromOffset(7, 5),
+		Size = UDim2.fromOffset(0, 0),
+		AutomaticSize = Enum.AutomaticSize.XY,
+		BackgroundTransparency = 1,
+		ZIndex = 3,
+	}, children)
 end
 
 local FADE_IDLE = NumberSequence.new({
@@ -139,13 +170,7 @@ local function ItemTile(props)
 			size = 16,
 			zIndex = 3,
 		}),
-		Badge = props.badgeText and e(Corner, {
-			text = props.badgeText,
-			color = props.badgeColor,
-			trait = props.badgeTrait,
-			position = UDim2.fromOffset(7, 5),
-			alignment = Enum.TextXAlignment.Left,
-		}),
+		Traits = props.traits and #props.traits > 0 and e(TraitBadges, { traits = props.traits }),
 		Tag = props.tagText and e(Corner, {
 			text = props.tagText,
 			color = props.tagColor,

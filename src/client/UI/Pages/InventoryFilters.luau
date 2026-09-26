@@ -20,6 +20,7 @@ InventoryFilters.shows = {
 	{ id = "all", label = "All items" },
 	{ id = "equipped", label = "Equipped" },
 	{ id = "traits", label = "Has trait" },
+	{ id = "stacked", label = "Stacked traits" },
 	{ id = "tracker", label = "Stat Tracker" },
 	{ id = "mint", label = "Mint / Pristine" },
 	{ id = "serial", label = "Top 100 serial" },
@@ -68,11 +69,10 @@ local SORTERS = {
 
 local function searchText(item): string
 	local info = ItemRegistry.get(item.assetId)
-	local trait = Traits.get(item.trait)
 	local parts = {
 		info and info.name or "",
 		info and info.acronym or "",
-		trait and trait.name or "",
+		Traits.label(Traits.of(item)) or "",
 		Condition.fromFloat(item.float).name,
 		"#" .. item.serial,
 		SeriesRegistry.name(CaseRegistry.itemSeries(item)),
@@ -86,7 +86,9 @@ local function passesShow(entry, show: string, equippedSet): boolean
 	if show == "equipped" then
 		return equippedSet[item.uid] == true
 	elseif show == "traits" then
-		return item.trait ~= nil
+		return #Traits.of(item) > 0
+	elseif show == "stacked" then
+		return #Traits.of(item) > 1
 	elseif show == "tracker" then
 		return item.tracker ~= nil
 	elseif show == "mint" then

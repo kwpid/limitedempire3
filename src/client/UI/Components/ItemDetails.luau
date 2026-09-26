@@ -72,7 +72,9 @@ local function ItemDetails(props)
 	local info = ItemRegistry.get(item.assetId)
 	local tier = ItemRegistry.tier(item.assetId)
 	local band = Condition.fromFloat(item.float)
-	local trait = Traits.get(item.trait)
+	local traitIds = Traits.of(item)
+	local trait = Traits.get(traitIds[1])
+	local stacked = Traits.get(traitIds[2])
 	local breakdown = Valuation.breakdown(item)
 	local serialLabel = Serial.label(item.serial)
 	local thumbSize = props.thumbnailSize or 150
@@ -134,10 +136,10 @@ local function ItemDetails(props)
 		}),
 		Spacer = e("Frame", { LayoutOrder = 2, Size = UDim2.fromOffset(0, 6), BackgroundTransparency = 1 }),
 		Name = e(TraitText, {
-			trait = item.trait,
+			trait = traitIds[1],
 			LayoutOrder = 3,
 			Size = UDim2.new(1, 0, 0, 24),
-			Text = (trait and (trait.name .. " ") or "") .. (info and info.name or "Unknown"),
+			Text = Traits.fullName(traitIds, info and info.name or "Unknown"),
 			TextSize = 20,
 			TextColor3 = trait and trait.uiColor or Theme.colors.text,
 			display = true,
@@ -184,23 +186,30 @@ local function ItemDetails(props)
 		Trait = e(Row, {
 			layoutOrder = 10,
 			label = "Trait",
-			trait = item.trait,
-			value = trait and (trait.name .. multiplierText(breakdown.trait)) or "None",
+			trait = traitIds[1],
+			value = trait and (trait.name .. multiplierText(trait.multiplier)) or "None",
 			color = trait and trait.uiColor or Theme.colors.textFaint,
 		}),
-		Tracker = item.tracker and e(Row, {
+		Stacked = stacked and e(Row, {
 			layoutOrder = 11,
+			label = "Stacked trait",
+			trait = stacked.id,
+			value = string.format("%s  +x%.2f", stacked.name, Traits.stackBonus(stacked.id)),
+			color = stacked.uiColor,
+		}),
+		Tracker = item.tracker and e(Row, {
+			layoutOrder = 12,
 			label = "Stat Tracker",
 			value = `{Format.commas(item.tracker.opens)} opened` .. multiplierText(breakdown.tracker),
 			color = Theme.colors.tracker,
 		}),
 		Series = e(Row, {
-			layoutOrder = 12,
+			layoutOrder = 13,
 			label = "Series",
 			value = SeriesRegistry.name(CaseRegistry.itemSeries(item)),
 		}),
 		Owner = e(Row, {
-			layoutOrder = 13,
+			layoutOrder = 14,
 			label = "OG Owner",
 			value = ownerText(item.originalOwner),
 			color = if item.originalOwner then nil else Theme.colors.textFaint,

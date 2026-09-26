@@ -6,7 +6,8 @@ export type ItemInstance = {
 	assetId: number,
 	float: number,
 	serial: number,
-	trait: string?,
+	trait: string?, -- the best trait, kept so older code and saves keep working
+	traits: { string }?, -- every trait best first (stacked traits), read through Traits.of(item)
 	caseId: string?,
 	obtainedAt: number,
 	series: string?,

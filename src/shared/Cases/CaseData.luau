@@ -4,17 +4,18 @@
 -- every series must be in at least one case's series list so every item can be unboxed somewhere, and items in
 -- more than one series can drop from more than one case.
 -- items worth specialMinValue or more are hidden as the case's "rare special items". this is a value on its own
--- rather than a tier so retuning the rarity tiers never changes case odds or prices.
+-- rather than a tier so retuning the rarity tiers never changes case odds or prices. every case gets at least
+-- one special item (CaseRegistry adds the least used one to any case whose series have none).
 --
 -- fields: curve (odds are value^-curve inside each group, lower = pricier items drop more),
--- specialChance (combined odds of hitting the hidden special pool, 0.0015 = 1 in 667),
--- specialMinValue (base value at which an item joins the hidden special pool),
+-- specialChance (combined odds of hitting the hidden special pool, 0.00015 = 1 in 6,667),
+-- specialMinValue (base value at which an item joins the hidden special pool, 20M = the Divine tier),
 -- cases (id, name, order, color, series = { series id }, guests = { series theme id }).
 
 return {
 	curve = 0.9,
-	specialChance = 0.0015,
-	specialMinValue = 2_000_000,
+	specialChance = 0.00015,
+	specialMinValue = 20_000_000,
 	guestMinValue = 30_000,
 	guestCount = 6,
 	cases = {

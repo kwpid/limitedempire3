@@ -41,6 +41,7 @@ local function buildEntries(inventory)
 			value = value,
 			valueText = Format.cash(value),
 			tierId = ItemRegistry.tier(item.assetId).id,
+			traits = Traits.of(item),
 		})
 	end
 	return list
@@ -104,7 +105,6 @@ local function InventoryPage(props)
 	for index = first, last do
 		local entry = entries[index]
 		local item = entry.item
-		local trait = Traits.get(item.trait)
 		local band = Condition.fromFloat(item.float)
 		local equipped = equippedSet[item.uid] == true
 		tiles[item.uid] = e(ItemTile, {
@@ -113,9 +113,7 @@ local function InventoryPage(props)
 			assetId = item.assetId,
 			subtitle = entry.valueText,
 			selected = item.uid == selectedUid,
-			badgeText = trait and trait.name or nil,
-			badgeColor = trait and trait.uiColor or nil,
-			badgeTrait = item.trait,
+			traits = entry.traits,
 			tagText = band.name,
 			tagColor = band.color,
 			equipped = equipped,

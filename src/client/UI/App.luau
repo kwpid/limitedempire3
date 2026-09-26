@@ -34,13 +34,14 @@ local e = React.createElement
 local AUTO_OPEN_DELAY = 1.5
 
 local function playReveal(item)
-	local trait = Traits.get(item.trait)
+	local traits = Traits.of(item)
+	local trait = Traits.get(traits[1])
 	local rank = ItemRegistry.tier(item.assetId).rank
 	if rank >= 8 then
 		Sfx.play("revealMythic", 0.65)
 		Sfx.play("revealMythicSweep")
 		Sfx.play("revealRare", 1.2)
-	elseif (trait and trait.announce) or rank >= 6 or Valuation.value(item) >= Config.AnnounceValue then
+	elseif (trait and trait.announce) or #traits > 1 or rank >= 6 or Valuation.value(item) >= Config.AnnounceValue then
 		Sfx.play("revealMythic")
 		Sfx.play("revealMythicSweep")
 	elseif rank >= 4 or trait then
