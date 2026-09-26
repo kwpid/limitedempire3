@@ -1,7 +1,8 @@
 -- making a trade, like Roblox: pick who to trade with (someone in this server, or anyone by username), then pick up
 -- to Config.Trade.MaxItems items from each inventory and send it. also used to counter a trade, starting from the
 -- trade being countered (sides swapped, since you are now the one sending it).
--- props: inventory (your own), counter? (the trade being countered), onDone()
+-- hovering (or tapping) an item shows its full stats with an Inspect button.
+-- props: inventory (your own), counter? (the trade being countered), onDone(), onInspectItem(item)
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -57,6 +58,7 @@ end
 local function Chip(props)
 	local item = props.item
 	local hovered, setHovered = React.useState(false)
+	local hover = TradeParts.useHover()
 	local tier = ItemRegistry.tier(item.assetId)
 	return e("TextButton", {
 		LayoutOrder = props.layoutOrder,
@@ -69,11 +71,17 @@ local function Chip(props)
 			Sfx.play("tab")
 			props.onRemove(item.uid)
 		end,
-		[React.Event.MouseEnter] = function()
+		[React.Event.MouseEnter] = function(rbx)
 			setHovered(true)
+			if hover then
+				hover.open(item, rbx)
+			end
 		end,
 		[React.Event.MouseLeave] = function()
 			setHovered(false)
+			if hover then
+				hover.close()
+			end
 		end,
 	}, {
 		Corner = e("UICorner", { CornerRadius = Theme.radius }),
@@ -427,6 +435,7 @@ local function TradeComposer(props)
 	if not partner then
 		return e(PartnerPicker, { onPick = setPartner })
 	end
+	local hoverProps = { onInspect = props.onInspectItem }
 	local theirsByUid = {}
 	for _, item in theirs or {} do
 		theirsByUid[item.uid] = item
@@ -505,10 +514,7 @@ local function TradeComposer(props)
 		end)
 	end
 
-	return e("Frame", {
-		Size = UDim2.fromScale(1, 1),
-		BackgroundTransparency = 1,
-	}, {
+	return e(TradeParts.HoverLayer, hoverProps, {
 		Give = e(Offer, {
 			position = UDim2.fromOffset(0, 0),
 			title = "You give",

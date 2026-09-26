@@ -1,7 +1,8 @@
 -- the trades window, like Roblox trades: Inbound / Outbound / Completed / Inactive tabs, a list of trades on the
 -- left and the selected trade on the right (what you give, what you get, and accept / counter / decline / cancel).
+-- hovering (or tapping) an item shows its full stats with an Inspect button.
 -- props: trades, inventory (your own, to warn when you no longer have an item you'd give),
--- onCompose({ partner?, counter? }) opens the trade composer
+-- onCompose({ partner?, counter? }) opens the trade composer, onInspectItem(item) inspects any item
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -398,10 +399,7 @@ local function TradesPage(props)
 		})
 	end
 
-	return e("Frame", {
-		Size = UDim2.fromScale(1, 1),
-		BackgroundTransparency = 1,
-	}, {
+	return e(TradeParts.HoverLayer, { onInspect = props.onInspectItem }, {
 		Tabs = e(TabBar, {
 			size = UDim2.new(1, -170, 0, TAB_HEIGHT),
 			tabs = tabs,
