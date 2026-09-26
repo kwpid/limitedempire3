@@ -26,7 +26,7 @@ PlayerStats.list = {
 	{ id = "hiloBest", group = "Games", label = "Best Higher or Lower streak", format = "count" },
 	{ id = "battles", group = "Games", label = "Case battles", format = "count" },
 	{ id = "battlesWon", group = "Games", label = "Case battles won", format = "count" },
-	{ id = "cashBets", group = "Cash games", label = "Coinflip and dice bets", format = "count" },
+	{ id = "cashBets", group = "Cash games", label = "Bets placed", format = "count" },
 	{ id = "cashWagered", group = "Cash games", label = "Wagered", format = "cash" },
 	{ id = "cashWon", group = "Cash games", label = "Won", format = "cash" },
 	{ id = "tradesCompleted", group = "Trading", label = "Trades completed", format = "count" },

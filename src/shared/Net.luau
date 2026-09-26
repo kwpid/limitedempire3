@@ -11,6 +11,7 @@ local EVENTS = {
 	"BattleUpdate",
 	"ProgressEvent",
 	"TradeUpdate",
+	"CashRoundUpdate",
 }
 
 local FUNCTIONS = {
@@ -34,6 +35,7 @@ local FUNCTIONS = {
 	"CashGame",
 	"RedeemCode",
 	"DailyLogin",
+	"CashRound",
 }
 
 local FOLDER_NAME = "Remotes"

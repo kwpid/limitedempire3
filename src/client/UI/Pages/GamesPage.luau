@@ -22,6 +22,9 @@ local TradeUpPage = require(script.Parent.Games.TradeUpPage)
 local HigherLowerPage = require(script.Parent.Games.HigherLowerPage)
 local CoinflipPage = require(script.Parent.Games.CoinflipPage)
 local DicePage = require(script.Parent.Games.DicePage)
+local CrashPage = require(script.Parent.Games.CrashPage)
+local MinesPage = require(script.Parent.Games.MinesPage)
+local Mines = require(Shared.Games.Mines)
 
 local e = React.createElement
 
@@ -85,6 +88,22 @@ local GAMES = {
 			`Up to {math.floor(CashGames.diceMultiplier(CashGames.MIN_CHANCE))}x`,
 		},
 		page = DicePage,
+	},
+	{
+		id = "crash",
+		name = "Crash",
+		color = Color3.fromRGB(235, 80, 110),
+		description = "Watch the multiplier climb and cash out before it crashes. Wait longer, win bigger.",
+		facts = { "Cash out any time", "Set an auto cash out" },
+		page = CrashPage,
+	},
+	{
+		id = "mines",
+		name = "Mines",
+		color = Color3.fromRGB(90, 200, 140),
+		description = "Find gems, dodge mines. Every safe tile raises your payout, one mine loses it all.",
+		facts = { `{Mines.MIN_MINES} to {Mines.MAX_MINES} mines`, "Cash out any time" },
+		page = MinesPage,
 	},
 }
 
