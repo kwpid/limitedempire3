@@ -11,6 +11,9 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local NameStyles = require(Shared.Visuals.NameStyles)
 local Titles = require(Shared.Titles)
 
+-- chat text is small, so the glow stroke stays faint (0 = solid outline, 1 = none)
+local GLOW_TRANSPARENCY = 0.75
+
 local ChatTags = {}
 
 local function glowColor(title): Color3?
@@ -29,7 +32,8 @@ local function titleTag(titleId: any): string
 	local text = `<font color="#{title.color:ToHex()}"><b>{string.upper(title.name)}</b></font>`
 	local glow = title.glow and glowColor(title)
 	if glow then
-		text = `<stroke color="#{glow:ToHex()}" thickness="1" transparency="0.35">{text}</stroke>`
+		text =
+			`<stroke color="#{glow:ToHex()}" joins="round" thickness="1" transparency="{GLOW_TRANSPARENCY}">{text}</stroke>`
 	end
 	return text .. " "
 end
