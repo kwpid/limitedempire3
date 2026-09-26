@@ -4,15 +4,19 @@ local React = require(ReplicatedStorage.Packages.React)
 local Theme = require(script.Parent.Parent.Theme)
 local Text = require(script.Parent.Text)
 local Button = require(script.Parent.Button)
-local useViewportScale = require(script.Parent.Parent.Hooks.useViewportScale)
+local Layout = require(script.Parent.Parent.Layout)
+local useScreen = require(script.Parent.Parent.Hooks.useScreen)
 
 local e = React.createElement
 
-local BASE_SIZE = Vector2.new(1000, 600)
 local HEADER = 46
 
+-- sizes itself with Layout.window: centered on bigger screens, filling the screen on phones
 local function Window(props)
-	local scale = useViewportScale(BASE_SIZE + Vector2.new(60, 130))
+	local screen = useScreen()
+	local layout = Layout.window(screen)
+	-- header buttons get a bigger tap target on phones
+	local buttonHeight = if screen.compact then 34 else 28
 
 	local body = {
 		Padding = e("UIPadding", {
@@ -28,13 +32,13 @@ local function Window(props)
 
 	return e("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0.5, -30),
-		Size = UDim2.fromOffset(BASE_SIZE.X, BASE_SIZE.Y),
+		Position = UDim2.new(0.5, 0, 0.5, layout.offsetY),
+		Size = UDim2.fromOffset(layout.size.X, layout.size.Y),
 		BackgroundColor3 = Theme.colors.window,
 		BorderSizePixel = 0,
 		Visible = props.visible ~= false,
 	}, {
-		Scale = e("UIScale", { Scale = scale }),
+		Scale = e("UIScale", { Scale = layout.scale }),
 		Corner = e("UICorner", { CornerRadius = Theme.radius }),
 		Stroke = e("UIStroke", { Color = Theme.colors.stroke }),
 		Header = e("Frame", {
@@ -45,14 +49,14 @@ local function Window(props)
 			Corner = e("UICorner", { CornerRadius = Theme.radius }),
 			Back = props.onBack and e(Button, {
 				text = "Back",
-				size = UDim2.fromOffset(70, 28),
+				size = UDim2.fromOffset(if screen.compact then 84 else 70, buttonHeight),
 				position = UDim2.new(0, 10, 0.5, 0),
 				anchorPoint = Vector2.new(0, 0.5),
 				textSize = 14,
 				onClick = props.onBack,
 			}),
 			Title = e(Text, {
-				Position = UDim2.new(0, props.onBack and 94 or 16, 0, 0),
+				Position = UDim2.new(0, if props.onBack then (if screen.compact then 108 else 94) else 16, 0, 0),
 				Size = UDim2.new(1, -200, 1, 0),
 				Text = props.title,
 				TextSize = 20,
@@ -60,7 +64,7 @@ local function Window(props)
 			}),
 			Subtitle = props.subtitle and e(Text, {
 				AnchorPoint = Vector2.new(1, 0),
-				Position = UDim2.new(1, -56, 0, 0),
+				Position = UDim2.new(1, if screen.compact then -68 else -56, 0, 0),
 				Size = UDim2.new(0, 300, 1, 0),
 				Text = props.subtitle,
 				TextSize = 13,
@@ -69,7 +73,7 @@ local function Window(props)
 			}),
 			Close = e(Button, {
 				text = "X",
-				size = UDim2.fromOffset(30, 28),
+				size = UDim2.fromOffset(if screen.compact then 46 else 30, buttonHeight),
 				position = UDim2.new(1, -10, 0.5, 0),
 				anchorPoint = Vector2.new(1, 0.5),
 				textSize = 14,

@@ -7,6 +7,7 @@ local ReactRoblox = require(ReplicatedStorage.Packages:WaitForChild("ReactRoblox
 
 local Controllers = script:WaitForChild("Controllers")
 local PlayerState = require(Controllers.PlayerState)
+local Screen = require(Controllers.Screen)
 local Notifications = require(Controllers.Notifications)
 local Sfx = require(Controllers.Sfx)
 local AvatarWear = require(Controllers.AvatarWear)
@@ -24,6 +25,7 @@ local OverheadLayer = require(script.UI:WaitForChild("Overheads"):WaitForChild("
 pcall(StarterGui.SetCoreGuiEnabled, StarterGui, Enum.CoreGuiType.Backpack, false)
 
 Perf.start()
+Screen.start()
 WearRenderer.start()
 require(Controllers.ItemModels).warmAll()
 Preloader.start()
@@ -41,7 +43,8 @@ local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local focusGui = Instance.new("ScreenGui")
 focusGui.Name = "LimitedEmpireFocus"
 focusGui.ResetOnSpawn = false
-focusGui.IgnoreGuiInset = true
+-- full screen (under Roblox's topbar too) but inside the device safe area, so notches never cut anything off
+focusGui.ScreenInsets = Enum.ScreenInsets.DeviceSafeInsets
 focusGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 focusGui.DisplayOrder = 10
 focusGui.Parent = playerGui
