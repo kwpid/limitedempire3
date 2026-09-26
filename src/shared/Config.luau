@@ -34,6 +34,15 @@ local Config = {
 		Multiplier = 1.2,
 	},
 
+	Trade = {
+		MaxItems = 10,
+		ExpireDays = 7,
+		MaxOutbound = 25,
+		MaxInbound = 50,
+		KeepHistory = 30,
+		ActionCooldown = 0.5,
+	},
+
 	Overhead = {
 		ShowOwn = true,
 		WidthStuds = 6,

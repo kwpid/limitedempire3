@@ -36,7 +36,22 @@
 --   PlayerDataService.Loaded (signal: player), PlayerDataService.EquippedChanged (signal: player, uids),
 --   PlayerDataService.InventoryChanged (signal: player) fires after items are added, removed or wiped
 --   PlayerDataService.Leaving (signal: player) fires when a player leaves, before their data is saved and closed
+--
+-- profile messages (for trading, which works between players in any server or offline):
+--   PlayerDataService:SetMessageHandler(fn(ctx, message) -> ()) handles every message sent to a profile. ctx is
+--   { data, player?, userId, send(toUserId, message, pump?) }: player is set when that player is in this server,
+--   otherwise data is an offline profile this server opened for a moment (see Pump). a handler that errors leaves
+--   the message to be handled again next session, so handlers must be safe to run twice.
+--   PlayerDataService:SendMessage(player, toUserId, message, pump?) queues a message from this player's profile.
+--   messages go out through an outbox saved in the sender's data and are only sent once the change that queued
+--   them has been saved, so a server crash can never deliver a message for a change that was lost (no dupes).
+--   the outbox resends anything unsent next session, so a message can arrive twice: receivers must ignore repeats.
+--   pump = true opens the receiver's profile here for a moment when they are offline, so the message is handled
+--   right away instead of when they next join.
+--   PlayerDataService:GiveItems(player, items) adds exact item records (uids kept), :CleanRefs(data) drops
+--   equipped / pinned uids that are no longer owned (for offline data)
 
+local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -60,7 +75,10 @@ type SavedData = {
 	settings: { [string]: any },
 	stats: { [string]: number },
 	cosmetics: { [string]: { equipped: string?, unlocked: { string } } },
+	trades: { [string]: any },
+	tradeOutbox: { OutboxEntry },
 }
+type OutboxEntry = { key: string, to: number, message: any, pump: boolean? }
 
 local PlayerDataService = {
 	InventoryChanged = Signal.new(),
@@ -72,6 +90,15 @@ local PlayerDataService = {
 local store = ProfileStore.New(DataConfig.PlayerStore, DataConfig.template())
 local profiles: { [Player]: any } = {}
 local versions: { [Player]: number } = {}
+
+local messageHandler: ((ctx: any, message: any) -> ())? = nil
+-- os.clock() when an outbox entry was queued in this server. entries loaded from the datastore have none, they are
+-- already saved and can go out right away
+local outboxQueuedAt: { [string]: number } = {}
+local outboxSending: { [string]: boolean } = {}
+local saveQueued: { [any]: boolean } = {}
+-- user ids whose offline profile this server has open to handle their messages
+local pumping: { [number]: boolean } = {}
 
 local function dataOf(player: Player): SavedData?
 	local profile = profiles[player]
@@ -348,6 +375,175 @@ function PlayerDataService:UnlockCosmetic(player: Player, kind: string, id: stri
 	end
 end
 
+-- saves soon, once per frame however many changes ask for it
+local function requestSave(profile)
+	if saveQueued[profile] then
+		return
+	end
+	saveQueued[profile] = true
+	task.defer(function()
+		saveQueued[profile] = nil
+		if profile:IsActive() then
+			profile:Save()
+		end
+	end)
+end
+
+-- sends the outbox entries that are known to be saved: loaded ones, and ones queued before savedFrom (the time the
+-- save that just finished started) that are also in the data that save returned (savedKeys). the second check matters
+-- because OnAfterSave also fires for a save that did not write, when another server took the session over.
+-- a sent entry is dropped from the data, if the profile already closed it stays saved and is sent again next
+-- session (receivers ignore repeats)
+local function flushOutbox(profile, savedFrom: number?, savedKeys: { [string]: boolean }?)
+	for _, entry in profile.Data.tradeOutbox or {} do
+		local queuedAt = outboxQueuedAt[entry.key]
+		local saved = queuedAt == nil
+			or (savedFrom ~= nil and queuedAt < savedFrom and savedKeys ~= nil and savedKeys[entry.key] == true)
+		if saved and not outboxSending[entry.key] then
+			outboxSending[entry.key] = true
+			task.spawn(function()
+				local ok, sent = pcall(store.MessageAsync, store, tostring(entry.to), entry.message)
+				outboxSending[entry.key] = nil
+				if not (ok and sent) then
+					warn(`[PlayerDataService] message to {entry.to} not sent, retrying next save: {sent}`)
+					return
+				end
+				outboxQueuedAt[entry.key] = nil
+				local outbox = profile.Data.tradeOutbox
+				for index, other in outbox do
+					if other.key == entry.key then
+						table.remove(outbox, index)
+						break
+					end
+				end
+				if entry.pump then
+					PlayerDataService:Pump(entry.to)
+				end
+			end)
+		end
+	end
+end
+
+local function queueMessage(profile, to: number, message: any, pump: boolean?)
+	local key = HttpService:GenerateGUID(false)
+	profile.Data.tradeOutbox = profile.Data.tradeOutbox or {}
+	table.insert(profile.Data.tradeOutbox, { key = key, to = to, message = message, pump = pump })
+	outboxQueuedAt[key] = os.clock()
+	requestSave(profile)
+end
+
+-- hooks a profile (a player's, or an offline one opened by Pump) up to the outbox and the message handler.
+-- pairing the k-th finished save with the k-th oldest save start is safe whatever order saves finish in: k saves have
+-- finished, so one of them started at or after that time and wrote every entry queued before it. a save that fails
+-- fires no OnAfterSave, which only pairs later saves with earlier starts (sends later, never early)
+local function attachMessaging(profile, player: Player?)
+	local starts = {}
+	profile.OnSave:Connect(function()
+		table.insert(starts, os.clock())
+	end)
+	profile.OnAfterSave:Connect(function(lastSaved)
+		local started = table.remove(starts, 1)
+		if started then
+			local savedKeys = {}
+			for _, entry in type(lastSaved) == "table" and lastSaved.tradeOutbox or {} do
+				savedKeys[entry.key] = true
+			end
+			flushOutbox(profile, started, savedKeys)
+		end
+	end)
+	profile:MessageHandler(function(message, processed)
+		if not messageHandler then
+			return
+		end
+		local ctx = {
+			data = profile.Data,
+			player = player,
+			userId = tonumber(profile.Key),
+			send = function(to: number, nextMessage: any, pump: boolean?)
+				queueMessage(profile, to, nextMessage, pump)
+			end,
+		}
+		local ok, err = pcall(messageHandler, ctx, message)
+		if not ok then
+			warn(`[PlayerDataService] message for {profile.Key} failed, it will be retried next session: {err}`)
+			return
+		end
+		processed()
+		requestSave(profile)
+	end)
+	flushOutbox(profile, nil)
+end
+
+function PlayerDataService:SetMessageHandler(fn: (ctx: any, message: any) -> ())
+	messageHandler = fn
+end
+
+function PlayerDataService:SendMessage(player: Player, toUserId: number, message: any, pump: boolean?)
+	local profile = profiles[player]
+	if profile then
+		queueMessage(profile, toUserId, message, pump)
+	end
+end
+
+-- handles the messages waiting on a player's profile now: saves it when they are in this server (that runs the
+-- handler), otherwise opens their offline profile here for a moment. a player in another server gets their messages
+-- from there (MessageAsync already asked that server to save).
+function PlayerDataService:Pump(userId: number)
+	if pumping[userId] then
+		return
+	end
+	local here = Players:GetPlayerByUserId(userId)
+	if here then
+		if profiles[here] then
+			requestSave(profiles[here])
+		end
+		return
+	end
+	pumping[userId] = true
+	task.spawn(function()
+		local key = tostring(userId)
+		local ok, view = pcall(store.GetAsync, store, key)
+		if ok and view and not view.Session then
+			local profile = store:StartSessionAsync(key, {
+				Cancel = function()
+					return Players:GetPlayerByUserId(userId) ~= nil
+				end,
+			})
+			if profile then
+				profile:Reconcile()
+				local saves = 0
+				profile.OnAfterSave:Connect(function()
+					saves += 1
+				end)
+				attachMessaging(profile, nil)
+				requestSave(profile)
+				local deadline = os.clock() + 20
+				while os.clock() < deadline and not Players:GetPlayerByUserId(userId) do
+					-- sent entries leave the outbox, so an empty outbox after a save means everything went out
+					if saves > 0 and #profile.Data.tradeOutbox == 0 and not saveQueued[profile] then
+						break
+					end
+					task.wait(0.25)
+				end
+				profile:EndSession()
+			end
+		end
+		pumping[userId] = nil
+	end)
+end
+
+function PlayerDataService:GiveItems(player: Player, items: { ItemInstance })
+	local data = dataOf(player)
+	if not data or #items == 0 then
+		return
+	end
+	for _, item in items do
+		data.inventory[item.uid] = item
+	end
+	push(player, "update", items)
+	self.InventoryChanged:Fire(player)
+end
+
 local function loadedPlayer(userId: number): Player?
 	local player = Players:GetPlayerByUserId(userId)
 	return if player and profiles[player] then player else nil
@@ -363,6 +559,10 @@ local function dropMissingEquipped(data: SavedData)
 		end
 		(data :: any)[key] = kept
 	end
+end
+
+function PlayerDataService:CleanRefs(data: any)
+	dropMissingEquipped(data)
 end
 
 function PlayerDataService:ViewUser(userId: number): (SavedData?, string)
@@ -473,6 +673,10 @@ local function onPlayerAdded(player: Player)
 	if profiles[player] then
 		return
 	end
+	-- an offline profile this server opened for trade messages has to close before the player's session starts
+	while pumping[player.UserId] and player.Parent == Players do
+		task.wait(0.25)
+	end
 	local profile = store:StartSessionAsync(tostring(player.UserId), {
 		Cancel = function()
 			return player.Parent ~= Players
@@ -499,6 +703,7 @@ local function onPlayerAdded(player: Player)
 	end
 	profiles[player] = profile
 	versions[player] = 0
+	attachMessaging(profile, player)
 	PlayerDataService.Loaded:Fire(player)
 end
 

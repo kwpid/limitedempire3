@@ -1,8 +1,9 @@
 -- bottom navigation, CS:GO style: separate slate buttons with a faint diagonal stripe pattern, a light top edge and
 -- an accent bar along the bottom that lights up on hover and while the tab's window is open. Cases is the big button
--- in the middle (it is the game), with the other tabs on either side: Inventory and Games to the left, Season and
--- Settings to the right. admin stays apart in the bottom right.
--- props: page (open window id or nil), onNavigate(id?)
+-- in the middle (it is the game), with the other tabs on either side: Inventory and Games to the left, Trades, Season
+-- and Settings to the right. a tab can show a count badge (Trades shows trades waiting on you). admin stays apart in
+-- the bottom right.
+-- props: page (open window id or nil), onNavigate(id?), badges? ({ [tabId]: number })
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -28,6 +29,7 @@ local TABS = {
 	{ id = "inventory", text = "Inventory", color = Color3.fromRGB(90, 160, 255) },
 	{ id = "games", text = "Games", color = Color3.fromRGB(235, 95, 95) },
 	{ id = "cases", text = "Cases", color = Color3.fromRGB(245, 185, 28), featured = true },
+	{ id = "trades", text = "Trades", color = Color3.fromRGB(60, 200, 170) },
 	{ id = "season", text = "Season", color = Color3.fromRGB(180, 110, 255) },
 	{ id = "settings", text = "Settings", color = Color3.fromRGB(160, 170, 180) },
 }
@@ -150,6 +152,21 @@ local function NavButton(props)
 			TextStrokeTransparency = 0.8,
 			ZIndex = 2,
 		}),
+		Badge = if props.badge and props.badge > 0
+			then e("TextLabel", {
+				AnchorPoint = Vector2.new(1, 0),
+				Position = UDim2.new(1, -5, 0, 5),
+				Size = UDim2.fromOffset(18, 18),
+				BackgroundColor3 = Theme.colors.bad,
+				Text = if props.badge > 99 then "99+" else tostring(props.badge),
+				FontFace = Theme.font(Enum.FontWeight.Bold),
+				TextSize = if props.badge > 9 then 10 else 12,
+				TextColor3 = Color3.new(1, 1, 1),
+				ZIndex = 3,
+			}, {
+				Corner = e("UICorner", { CornerRadius = UDim.new(1, 0) }),
+			})
+			else nil,
 	})
 end
 
@@ -161,6 +178,7 @@ local function BottomNav(props)
 			layoutOrder = layoutOrder,
 			tab = tab,
 			active = props.page == tab.id,
+			badge = props.badges and props.badges[tab.id],
 			onClick = function()
 				props.onNavigate(if props.page == tab.id then nil else tab.id)
 			end,
