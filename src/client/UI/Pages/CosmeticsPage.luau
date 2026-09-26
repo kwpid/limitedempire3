@@ -1,5 +1,5 @@
--- the Titles and Name Styles tabs of the inventory: every title (or name style) as a card with a live preview,
--- owned ones first. click an owned card to equip it, locked ones show how they are earned.
+-- the Titles and Name Styles tabs of the inventory: every title (or name style) the player owns as a card with a
+-- live preview. click a card to equip it. titles and styles they don't own are not shown at all.
 -- props: kind ("title" | "nameStyle")
 
 local HttpService = game:GetService("HttpService")
@@ -173,18 +173,17 @@ local function CosmeticsPage(props)
 	local ownedCount = 0
 	local cards = {}
 	for index, entry in kind.list do
-		local isOwned = owned[entry.id] == true
-		if isOwned then
+		if owned[entry.id] then
 			ownedCount += 1
+			cards[entry.id] = e(Card, {
+				layoutOrder = index,
+				kind = props.kind,
+				entry = entry,
+				owned = true,
+				equipped = equippedId == entry.id,
+				onEquip = equip,
+			})
 		end
-		cards[entry.id] = e(Card, {
-			layoutOrder = if isOwned then index else 1000 + index,
-			kind = props.kind,
-			entry = entry,
-			owned = isOwned,
-			equipped = equippedId == entry.id,
-			onEquip = equip,
-		})
 	end
 
 	return e("Frame", {
@@ -193,7 +192,7 @@ local function CosmeticsPage(props)
 	}, {
 		Caption = e(Text, {
 			Size = UDim2.new(1, 0, 0, 20),
-			Text = `{ownedCount} of {#kind.list} {kind.noun}s owned  ·  more are earned through quests and events`,
+			Text = `{ownedCount} {if ownedCount == 1 then kind.noun else kind.noun .. "s"}  ·  more are earned through quests and events`,
 			TextSize = 13,
 			TextColor3 = Theme.colors.textDim,
 		}),
