@@ -19,6 +19,7 @@ local FUNCTIONS = {
 	"RequestItemModel",
 	"SetSetting",
 	"SetCosmetic",
+	"SetPinned",
 }
 
 local FOLDER_NAME = "Remotes"

@@ -31,6 +31,7 @@ export type PlayerState = {
 	cash: number,
 	inventory: { [string]: ItemInstance },
 	equipped: { string },
+	pinned: { string }, -- uids the player pinned, sorted right after equipped items in the inventory
 	settings: { [string]: any }, -- only the values the player changed, read through Settings.resolve
 	stats: { [string]: number },
 	version: number,

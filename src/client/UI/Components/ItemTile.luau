@@ -8,6 +8,7 @@ local Text = require(script.Parent.Text)
 local TraitText = require(script.Parent.TraitText)
 local Checkmark = require(script.Parent.Checkmark)
 local TrackerBadge = require(script.Parent.TrackerBadge)
+local PinIcon = require(script.Parent.PinIcon)
 local TierGradient = require(script.Parent.TierGradient)
 local Sfx = require(script.Parent.Parent.Parent.Controllers.Sfx)
 
@@ -142,7 +143,7 @@ local function ItemTile(props)
 		}),
 		Subtitle = e(Text, {
 			Position = UDim2.new(0, 8, 1, -26),
-			Size = UDim2.new(1, if props.equipped then -36 else -16, 0, 14),
+			Size = UDim2.new(1, -16 - (if props.equipped then 20 else 0) - (if props.pinned then 20 else 0), 0, 14),
 			Text = props.subtitle or "",
 			TextSize = 12,
 			TextColor3 = props.subtitleColor or Theme.colors.textDim,
@@ -162,6 +163,12 @@ local function ItemTile(props)
 			count = props.trackerCount,
 			anchorPoint = Vector2.new(0, 1),
 			position = UDim2.new(0, 8, 1, -46),
+			zIndex = 3,
+		}),
+		Pinned = props.pinned and e(PinIcon, {
+			anchorPoint = Vector2.new(1, 1),
+			position = UDim2.new(1, if props.equipped then -27 else -7, 1, -9),
+			size = 15,
 			zIndex = 3,
 		}),
 		Equipped = props.equipped and e(Checkmark, {

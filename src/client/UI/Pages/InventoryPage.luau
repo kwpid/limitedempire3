@@ -48,7 +48,7 @@ local function buildEntries(inventory)
 end
 
 local function InventoryPage(props)
-	local state = { inventory = props.inventory, equipped = props.equipped }
+	local state = { inventory = props.inventory, equipped = props.equipped, pinned = props.pinned or {} }
 	local selectedUid, setSelectedUid = React.useState(nil)
 	local pending, setPending = React.useState(false)
 	local page, setPage = React.useState(1)
@@ -69,9 +69,22 @@ local function InventoryPage(props)
 		return set
 	end, { state.equipped })
 
+	local pinnedSet = React.useMemo(function()
+		local set = {}
+		for _, uid in state.pinned do
+			set[uid] = true
+		end
+		return set
+	end, { state.pinned })
+
 	local entries = React.useMemo(function()
-		return InventoryFilters.apply(allEntries, { query = query, rarity = rarity, show = show, sort = sort }, equippedSet)
-	end, { allEntries, equippedSet, query, rarity, show, sort } :: { any })
+		return InventoryFilters.apply(
+			allEntries,
+			{ query = query, rarity = rarity, show = show, sort = sort },
+			equippedSet,
+			pinnedSet
+		)
+	end, { allEntries, equippedSet, pinnedSet, query, rarity, show, sort } :: { any })
 
 	React.useLayoutEffect(function()
 		setPage(1)
@@ -117,6 +130,7 @@ local function InventoryPage(props)
 			tagText = band.name,
 			tagColor = band.color,
 			equipped = equipped,
+			pinned = pinnedSet[item.uid] == true,
 			trackerCount = item.tracker and item.tracker.opens or nil,
 			onSelect = setSelectedUid,
 		})
@@ -125,6 +139,7 @@ local function InventoryPage(props)
 	local panelChildren
 	if selected then
 		local equipped = equippedSet[selected.uid] == true
+		local pinned = pinnedSet[selected.uid] == true
 		local equippable = ItemRegistry.isEquippable(selected.assetId)
 		local sellValue = math.floor(Valuation.value(selected) * Config.SellRate)
 		panelChildren = {
@@ -147,11 +162,25 @@ local function InventoryPage(props)
 				BackgroundTransparency = 1,
 			}, {
 				Inspect = e(Button, {
-					size = UDim2.new(1, 0, 0, 38),
+					size = UDim2.new(1, -86, 0, 38),
 					text = "Inspect",
 					color = Theme.colors.accent,
 					onClick = function()
 						props.onInspect(selected.uid)
+					end,
+				}),
+				Pin = e(Button, {
+					anchorPoint = Vector2.new(1, 0),
+					position = UDim2.fromScale(1, 0),
+					size = UDim2.fromOffset(80, 38),
+					text = if pinned then "Unpin" else "Pin",
+					color = if pinned then Theme.colors.marker:Lerp(Theme.colors.panel, 0.45) else nil,
+					disabled = pending,
+					onClick = function()
+						local uid = selected.uid
+						run(function()
+							return Actions.setPinned(uid, not pinned)
+						end)
 					end,
 				}),
 				Equip = e(Button, {

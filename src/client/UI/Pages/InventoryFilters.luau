@@ -22,6 +22,7 @@ end
 InventoryFilters.shows = {
 	{ id = "all", label = "All items" },
 	{ id = "equipped", label = "Equipped" },
+	{ id = "pinned", label = "Pinned" },
 	{ id = "traits", label = "Has trait" },
 	{ id = "stacked", label = "Stacked traits" },
 	{ id = "tracker", label = "Stat Tracker" },
@@ -84,10 +85,12 @@ local function searchText(item): string
 	return string.lower(table.concat(parts, " "))
 end
 
-local function passesShow(entry, show: string, equippedSet): boolean
+local function passesShow(entry, show: string, equippedSet, pinnedSet): boolean
 	local item = entry.item
 	if show == "equipped" then
 		return equippedSet[item.uid] == true
+	elseif show == "pinned" then
+		return pinnedSet[item.uid] == true
 	elseif show == "traits" then
 		return #Traits.of(item) > 0
 	elseif show == "stacked" then
@@ -102,7 +105,9 @@ local function passesShow(entry, show: string, equippedSet): boolean
 	return true
 end
 
-function InventoryFilters.apply(entries, filters, equippedSet)
+-- sorted equipped first, then pinned, then by the chosen sort
+function InventoryFilters.apply(entries, filters, equippedSet, pinnedSet)
+	pinnedSet = pinnedSet or {}
 	local query = string.lower(filters.query or "")
 	query = query:gsub("^%s+", ""):gsub("%s+$", "")
 	local tierId = filters.rarity or "all"
@@ -113,7 +118,7 @@ function InventoryFilters.apply(entries, filters, equippedSet)
 		if tierId ~= "all" and entry.tierId ~= tierId then
 			continue
 		end
-		if not passesShow(entry, show, equippedSet) then
+		if not passesShow(entry, show, equippedSet, pinnedSet) then
 			continue
 		end
 		if query ~= "" then
@@ -131,6 +136,10 @@ function InventoryFilters.apply(entries, filters, equippedSet)
 		local aEquipped, bEquipped = equippedSet[a.item.uid] == true, equippedSet[b.item.uid] == true
 		if aEquipped ~= bEquipped then
 			return aEquipped
+		end
+		local aPinned, bPinned = pinnedSet[a.item.uid] == true, pinnedSet[b.item.uid] == true
+		if aPinned ~= bPinned then
+			return aPinned
 		end
 		return sorter(a, b)
 	end)

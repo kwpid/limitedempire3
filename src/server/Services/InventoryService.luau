@@ -1,6 +1,7 @@
 -- selling items back for cash. equipped items that get sold are unequipped automatically by PlayerDataService.
 -- api: InventoryService:Sell(player, uids) -> { ok, err?, data? = payout }
 -- client calls it through Net.functions.SellItems:InvokeServer({ uid, ... }).
+-- pinning: InventoryService:SetPinned(player, uid, pinned) -> { ok, err? }, Net.functions.SetPinned(uid, pinned)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -41,7 +42,18 @@ function InventoryService:Sell(player: Player, uids: any): Types.Result<number>
 	return { ok = true, data = payout }
 end
 
+function InventoryService:SetPinned(player: Player, uid: any, pinned: any): Types.Result<nil>
+	if type(uid) ~= "string" or type(pinned) ~= "boolean" or not PlayerDataService:GetItem(player, uid) then
+		return { ok = false, err = "Invalid item" }
+	end
+	PlayerDataService:SetPinned(player, uid, pinned)
+	return { ok = true }
+end
+
 function InventoryService:Init()
+	Net.functions.SetPinned.OnServerInvoke = function(player, uid, pinned)
+		return InventoryService:SetPinned(player, uid, pinned)
+	end
 	Net.functions.SellItems.OnServerInvoke = function(player, uids)
 		return InventoryService:Sell(player, uids)
 	end

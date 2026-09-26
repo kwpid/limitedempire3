@@ -416,6 +416,7 @@ local function App(props)
 					Page = e(InventoryPage, {
 						inventory = state.inventory,
 						equipped = state.equipped,
+						pinned = state.pinned,
 						onInspect = setInspectUid,
 					}),
 				}),

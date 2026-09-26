@@ -28,6 +28,10 @@ function Actions.setEquipped(uids: { string }): Types.Result<nil>
 	return invoke(Net.functions.SetEquipped, uids)
 end
 
+function Actions.setPinned(uid: string, pinned: boolean): Types.Result<nil>
+	return invoke(Net.functions.SetPinned, uid, pinned)
+end
+
 function Actions.setCosmetic(kind: string, id: string): Types.Result<nil>
 	return invoke(Net.functions.SetCosmetic, kind, id)
 end

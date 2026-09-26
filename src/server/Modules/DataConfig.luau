@@ -23,6 +23,7 @@ function DataConfig.template()
 		cash = Config.StartingCash,
 		inventory = {},
 		equipped = {},
+		pinned = {},
 		settings = {},
 		cosmetics = {
 			title = { equipped = "none", unlocked = {} },

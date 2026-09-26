@@ -12,6 +12,8 @@
 --   PlayerDataService:GetItem(player, uid) -> ItemInstance?
 --   PlayerDataService:RemoveItems(player, uids) -> { ItemInstance } (the ones that existed)
 --   PlayerDataService:SetEquipped(player, uids)
+--   PlayerDataService:SetPinned(player, uid, pinned) pins or unpins an owned item (pins belong to the player, they
+--   are dropped when the item leaves the inventory)
 --   PlayerDataService:TransferItems(from, to, uids) -> { ItemInstance } moves the exact item records to another
 --   player (for trading), so uid, serial, traits, stat tracker count, series and OG owner all carry over
 --   PlayerDataService:UpdateItems(player, uids, mutate) -> { ItemInstance } calls mutate(item) on each owned item,
@@ -49,6 +51,7 @@ type SavedData = {
 	cash: number,
 	inventory: { [string]: ItemInstance },
 	equipped: { string },
+	pinned: { string },
 	settings: { [string]: any },
 	stats: { [string]: number },
 	cosmetics: { [string]: { equipped: string?, unlocked: { string } } },
@@ -78,6 +81,7 @@ local function snapshot(player: Player): Types.PlayerState?
 		cash = data.cash,
 		inventory = data.inventory,
 		equipped = data.equipped,
+		pinned = data.pinned,
 		settings = data.settings,
 		stats = data.stats,
 		version = versions[player] or 0,
@@ -177,6 +181,17 @@ function PlayerDataService:RemoveItems(player: Player, uids: { string }): { Item
 		table.insert(uidList, item.uid)
 	end
 	push(player, "remove", uidList)
+
+	local keptPinned = {}
+	for _, uid in data.pinned do
+		if not removedUids[uid] then
+			table.insert(keptPinned, uid)
+		end
+	end
+	if #keptPinned ~= #data.pinned then
+		data.pinned = keptPinned
+		push(player, "pinned", data.pinned)
+	end
 	self.InventoryChanged:Fire(player)
 
 	if #keptEquipped ~= #data.equipped then
@@ -217,6 +232,25 @@ function PlayerDataService:TransferItems(from: Player, to: Player, uids: { strin
 		self.InventoryChanged:Fire(to)
 	end
 	return moved
+end
+
+function PlayerDataService:SetPinned(player: Player, uid: string, pinned: boolean)
+	local data = dataOf(player)
+	if not data or not data.inventory[uid] then
+		return
+	end
+	local at = table.find(data.pinned, uid)
+	if pinned == (at ~= nil) then
+		return
+	end
+	local nextPinned = table.clone(data.pinned)
+	if pinned then
+		table.insert(nextPinned, uid)
+	else
+		table.remove(nextPinned, at :: number)
+	end
+	data.pinned = nextPinned
+	push(player, "pinned", data.pinned)
 end
 
 function PlayerDataService:SetEquipped(player: Player, uids: { string })
@@ -308,13 +342,15 @@ local function loadedPlayer(userId: number): Player?
 end
 
 local function dropMissingEquipped(data: SavedData)
-	local kept = {}
-	for _, uid in data.equipped do
-		if data.inventory[uid] then
-			table.insert(kept, uid)
+	for _, key in { "equipped", "pinned" } do
+		local kept = {}
+		for _, uid in (data :: any)[key] or {} do
+			if data.inventory[uid] then
+				table.insert(kept, uid)
+			end
 		end
+		(data :: any)[key] = kept
 	end
-	data.equipped = kept
 end
 
 function PlayerDataService:ViewUser(userId: number): (SavedData?, string)
@@ -344,6 +380,7 @@ function PlayerDataService:EditUser(userId: number, mutate: (SavedData) -> ()): 
 			cash = data.cash,
 			inventory = data.inventory,
 			equipped = data.equipped,
+			pinned = data.pinned,
 			settings = data.settings,
 			stats = data.stats,
 		})
@@ -389,6 +426,7 @@ function PlayerDataService:Reset(player: Player)
 		cash = data.cash,
 		inventory = data.inventory,
 		equipped = data.equipped,
+		pinned = data.pinned,
 		settings = data.settings,
 		stats = data.stats,
 	})
