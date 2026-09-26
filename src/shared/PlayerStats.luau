@@ -21,6 +21,8 @@ PlayerStats.list = {
 	{ id = "upgradesWon", label = "Upgrades won", format = "count" },
 	{ id = "tradeUps", label = "Trade-ups", format = "count" },
 	{ id = "hiloBest", label = "Best Higher or Lower streak", format = "count" },
+	{ id = "battles", label = "Case battles", format = "count" },
+	{ id = "battlesWon", label = "Case battles won", format = "count" },
 }
 
 function PlayerStats.defaults(): { [string]: number }

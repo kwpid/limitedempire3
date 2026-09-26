@@ -8,6 +8,7 @@ local RunService = game:GetService("RunService")
 local EVENTS = {
 	"StateDelta",
 	"Announce",
+	"BattleUpdate",
 }
 
 local FUNCTIONS = {
@@ -24,6 +25,8 @@ local FUNCTIONS = {
 	"TradeUp",
 	"HiLoStart",
 	"HiLoGuess",
+	"BattleAction",
+	"BattleLobbies",
 }
 
 local FOLDER_NAME = "Remotes"

@@ -476,6 +476,7 @@ local function App(props)
 			Page = page == "games" and e(GamesPage.component, {
 				game = selectedGame,
 				onSelect = setSelectedGame,
+				cash = state.cash,
 				inventory = state.inventory,
 				equipped = state.equipped,
 				pinned = state.pinned,

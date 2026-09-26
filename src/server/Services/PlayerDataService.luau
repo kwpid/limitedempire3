@@ -33,6 +33,7 @@
 --   PlayerDataService:Reset(player) (wipes the player back to the template, used by the admin panel)
 --   PlayerDataService.Loaded (signal: player), PlayerDataService.EquippedChanged (signal: player, uids),
 --   PlayerDataService.InventoryChanged (signal: player) fires after items are added, removed or wiped
+--   PlayerDataService.Leaving (signal: player) fires when a player leaves, before their data is saved and closed
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -63,6 +64,7 @@ local PlayerDataService = {
 	InventoryChanged = Signal.new(),
 	Loaded = Signal.new(),
 	EquippedChanged = Signal.new(),
+	Leaving = Signal.new(),
 }
 
 local store = ProfileStore.New(DataConfig.PlayerStore, DataConfig.template())
@@ -483,6 +485,9 @@ local function onPlayerAdded(player: Player)
 end
 
 local function onPlayerRemoving(player: Player)
+	if profiles[player] then
+		PlayerDataService.Leaving:Fire(player)
+	end
 	local profile = profiles[player]
 	if profile then
 		profile:EndSession()

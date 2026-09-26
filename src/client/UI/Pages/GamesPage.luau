@@ -16,18 +16,33 @@ local Text = require(script.Parent.Parent.Components.Text)
 local Button = require(script.Parent.Parent.Components.Button)
 local Sfx = require(script.Parent.Parent.Parent.Controllers.Sfx)
 local UpgraderPage = require(script.Parent.Games.UpgraderPage)
+local CaseBattlesPage = require(script.Parent.Games.CaseBattlesPage)
 local TradeUpPage = require(script.Parent.Games.TradeUpPage)
 local HigherLowerPage = require(script.Parent.Games.HigherLowerPage)
 
 local e = React.createElement
 
+local FEATURED_HEIGHT = 150
+
+-- the first entry is the featured game, shown as a wide card across the top
 local GAMES = {
+	{
+		id = "casebattles",
+		name = "Case Battles",
+		color = Color3.fromRGB(235, 90, 70),
+		description = "Everyone opens the same cases and the highest total value takes every item. Create a lobby, join one, or play solo against bots.",
+		facts = { "2 to 4 players, bots fill empty seats", "Winner takes every item" },
+		page = CaseBattlesPage,
+	},
 	{
 		id = "upgrader",
 		name = "Upgrader",
 		color = Color3.fromRGB(88, 180, 90),
 		description = "Put in up to 6 items and aim for something worth more. The bigger the jump, the lower the chance.",
-		facts = { `Up to {math.floor(Upgrader.MAX_CHANCE * 100)}% chance`, `{math.floor(Upgrader.HOUSE_EDGE * 100)}% house edge` },
+		facts = {
+			`Up to {math.floor(Upgrader.MAX_CHANCE * 100)}% chance`,
+			`{math.floor(Upgrader.HOUSE_EDGE * 100)}% house edge`,
+		},
 		page = UpgraderPage,
 	},
 	{
@@ -68,8 +83,10 @@ local function Card(props)
 		})
 	end
 
+	local featured = props.featured == true
 	return e("TextButton", {
 		LayoutOrder = props.layoutOrder,
+		Size = if featured then UDim2.fromScale(1, 1) else nil,
 		BackgroundColor3 = Theme.colors.panel,
 		BorderSizePixel = 0,
 		AutoButtonColor = false,
@@ -130,8 +147,8 @@ local function Card(props)
 				weight = Enum.FontWeight.Bold,
 			}),
 			Description = e(Text, {
-				Position = UDim2.fromOffset(0, 44),
-				Size = UDim2.new(1, 0, 0, 72),
+				Position = UDim2.fromOffset(0, 42),
+				Size = if featured then UDim2.new(0.58, 0, 0, 56) else UDim2.new(1, 0, 0, 56),
 				Text = entry.description,
 				TextSize = 14,
 				TextColor3 = Theme.colors.textDim,
@@ -140,14 +157,14 @@ local function Card(props)
 				TextYAlignment = Enum.TextYAlignment.Top,
 			}),
 			Facts = e("Frame", {
-				Position = UDim2.fromOffset(0, 128),
-				Size = UDim2.new(1, 0, 0, 60),
+				Position = if featured then UDim2.new(0.6, 0, 0, 44) else UDim2.fromOffset(0, 104),
+				Size = if featured then UDim2.new(0.4, -240, 0, 60) else UDim2.new(1, 0, 0, 44),
 				BackgroundTransparency = 1,
 			}, facts),
 			Play = e(Button, {
-				anchorPoint = Vector2.new(0, 1),
-				position = UDim2.fromScale(0, 1),
-				size = UDim2.new(1, 0, 0, 44),
+				anchorPoint = if featured then Vector2.new(1, 1) else Vector2.new(0, 1),
+				position = if featured then UDim2.fromScale(1, 1) else UDim2.fromScale(0, 1),
+				size = if featured then UDim2.fromOffset(220, 56) else UDim2.new(1, 0, 0, 44),
 				text = "Play",
 				textSize = 20,
 				color = entry.color:Lerp(Theme.colors.panel, 0.25),
@@ -170,6 +187,7 @@ local function GamesPage(props)
 
 	if selected then
 		return e(selected.page, {
+			cash = props.cash,
 			inventory = props.inventory,
 			equipped = props.equipped,
 			pinned = props.pinned,
@@ -177,14 +195,16 @@ local function GamesPage(props)
 		})
 	end
 
+	local others = #GAMES - 1
 	local cards = {
 		Layout = e("UIGridLayout", {
-			CellSize = UDim2.new(1 / #GAMES, -10, 1, 0),
+			CellSize = UDim2.new(1 / others, -10, 1, 0),
 			CellPadding = UDim2.fromOffset(12, 0),
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
 	}
-	for index, entry in GAMES do
+	for index = 2, #GAMES do
+		local entry = GAMES[index]
 		cards[entry.id] = e(Card, {
 			layoutOrder = index,
 			game = entry,
@@ -202,9 +222,20 @@ local function GamesPage(props)
 			TextSize = 13,
 			TextColor3 = Theme.colors.textDim,
 		}),
-		Cards = e("Frame", {
+		Featured = e("Frame", {
 			Position = UDim2.fromOffset(0, 30),
-			Size = UDim2.new(1, 0, 1, -30),
+			Size = UDim2.new(1, 0, 0, FEATURED_HEIGHT),
+			BackgroundTransparency = 1,
+		}, {
+			Card = e(Card, {
+				game = GAMES[1],
+				featured = true,
+				onSelect = props.onSelect,
+			}),
+		}),
+		Cards = e("Frame", {
+			Position = UDim2.fromOffset(0, 30 + FEATURED_HEIGHT + 12),
+			Size = UDim2.new(1, 0, 1, -(30 + FEATURED_HEIGHT + 12)),
 			BackgroundTransparency = 1,
 		}, cards),
 	})
