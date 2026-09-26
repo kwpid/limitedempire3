@@ -10,6 +10,7 @@ local Traits = require(Shared.Modifiers.Traits)
 local Valuation = require(Shared.Modifiers.Valuation)
 local Theme = require(script.Parent.Parent.Theme)
 local Text = require(script.Parent.Parent.Components.Text)
+local TraitText = require(script.Parent.Parent.Components.TraitText)
 local Button = require(script.Parent.Parent.Components.Button)
 local ConfirmButton = require(script.Parent.Parent.Components.ConfirmButton)
 local WearBar = require(script.Parent.Parent.Components.WearBar)
@@ -39,7 +40,8 @@ local function Row(props)
 			TextColor3 = Theme.colors.textFaint,
 			display = true,
 		}),
-		Value = e(Text, {
+		Value = e(TraitText, {
+			trait = props.trait,
 			Position = UDim2.fromScale(0.45, 0),
 			Size = UDim2.fromScale(0.55, 1),
 			Text = props.value,
@@ -170,7 +172,8 @@ local function InspectView(props)
 				TextColor3 = props.captionColor or Theme.colors.textDim,
 				display = true,
 			}),
-			Name = e(Text, {
+			Name = e(TraitText, {
+				trait = item.trait,
 				Position = UDim2.fromOffset(0, 20),
 				Size = UDim2.new(1, 0, 0, 44),
 				Text = (trait and (trait.name .. " ") or "") .. (info and info.name or "Unknown"),
@@ -277,6 +280,7 @@ local function InspectView(props)
 					Trait = e(Row, {
 						layoutOrder = 2,
 						label = "Trait",
+						trait = item.trait,
 						value = if trait then string.format("%s  x%.2f", trait.name, breakdown.trait) else "None",
 						color = if trait then trait.uiColor else Theme.colors.textFaint,
 					}),

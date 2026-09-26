@@ -115,8 +115,10 @@ local function InventoryPage(props)
 			selected = item.uid == selectedUid,
 			badgeText = trait and trait.name or nil,
 			badgeColor = trait and trait.uiColor or nil,
-			tagText = if equipped then "Equipped" else band.name,
-			tagColor = if equipped then Theme.colors.good else band.color,
+			badgeTrait = item.trait,
+			tagText = band.name,
+			tagColor = band.color,
+			equipped = equipped,
 			onSelect = setSelectedUid,
 		})
 	end

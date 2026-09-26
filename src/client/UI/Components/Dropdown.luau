@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local React = require(ReplicatedStorage.Packages.React)
 local Theme = require(script.Parent.Parent.Theme)
 local Text = require(script.Parent.Text)
+local Chevron = require(script.Parent.Chevron)
 local Sfx = require(script.Parent.Parent.Parent.Controllers.Sfx)
 
 local e = React.createElement
@@ -116,13 +117,11 @@ local function Dropdown(props)
 				TextColor3 = current and current.color or Theme.colors.text,
 				TextXAlignment = Enum.TextXAlignment.Right,
 			}),
-			Arrow = e("Frame", {
-				AnchorPoint = Vector2.new(1, 0.5),
-				Position = UDim2.new(1, -10, 0.5, if open then 2 else -2),
-				Size = UDim2.fromOffset(6, 6),
-				Rotation = 45,
-				BackgroundColor3 = Theme.colors.textDim,
-				BorderSizePixel = 0,
+			Arrow = e(Chevron, {
+				anchorPoint = Vector2.new(1, 0.5),
+				position = UDim2.new(1, -8, 0.5, 0),
+				up = open,
+				color = if open or hovered then Theme.colors.text else Theme.colors.textDim,
 			}),
 		}),
 		List = open and e("Frame", {

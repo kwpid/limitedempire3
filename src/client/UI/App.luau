@@ -14,6 +14,7 @@ local Wallet = require(script.Parent.Components.Wallet)
 local BottomNav = require(script.Parent.Components.BottomNav)
 local Toasts = require(script.Parent.Components.Toasts)
 local Window = require(script.Parent.Components.Window)
+local Button = require(script.Parent.Components.Button)
 local CasesPage = require(script.Parent.Pages.CasesPage)
 local CaseDetails = require(script.Parent.Pages.CaseDetails)
 local InventoryPage = require(script.Parent.Pages.InventoryPage)
@@ -29,6 +30,8 @@ local Sfx = require(script.Parent.Parent.Controllers.Sfx)
 local Perf = require(script.Parent.Parent.Controllers.Perf)
 
 local e = React.createElement
+
+local AUTO_OPEN_DELAY = 1.5
 
 local function playReveal(item)
 	local trait = Traits.get(item.trait)
@@ -63,6 +66,9 @@ local function App(props)
 	local opening, setOpening = React.useState(nil)
 	local inspectUid, setInspectUid = React.useState(nil)
 	local busy, setBusy = React.useState(false)
+	local autoOpen, setAutoOpen = React.useState(false)
+	local autoRunning, setAutoRunning = React.useState(false)
+	local autoCount, setAutoCount = React.useState(0)
 
 	local inspectItem = inspectUid and state.inventory[inspectUid]
 	local focused = opening ~= nil or inspectItem ~= nil
@@ -74,14 +80,28 @@ local function App(props)
 		end
 	end, { inspectUid, inspectItem })
 
-	local function openCase(caseId: string)
+	local function stopAuto()
+		setAutoRunning(false)
+	end
+
+	local function openCase(caseId: string, auto: boolean?)
 		local case = CaseRegistry.get(caseId)
 		if busy or not case then
 			return
 		end
 		if state.cash < case.price then
-			fail(`Not enough {Config.Currency.Name}`)
+			if auto then
+				stopAuto()
+				fail(`Auto-open stopped, not enough {Config.Currency.Name}`)
+			else
+				fail(`Not enough {Config.Currency.Name}`)
+			end
 			return
+		end
+		if auto then
+			setAutoCount(function(count)
+				return count + 1
+			end)
 		end
 		local key = os.clock()
 		Perf.note("open clicked")
@@ -104,10 +124,39 @@ local function App(props)
 				return nextOpening
 			end)
 			if not result.ok then
+				stopAuto()
 				fail(result.err)
 			end
 		end)
 	end
+
+	local function startCase(caseId: string)
+		if autoOpen then
+			setAutoCount(0)
+			setAutoRunning(true)
+			openCase(caseId, true)
+		else
+			openCase(caseId)
+		end
+	end
+
+	-- auto-open: once the unboxed item has been shown for AUTO_OPEN_DELAY, buy and open the same case again.
+	-- the ref keeps the delayed call on the latest render so it sees fresh cash and busy state.
+	local openCaseRef = React.useRef(openCase)
+	openCaseRef.current = openCase
+	local autoWaitingOn = if autoRunning and opening and opening.revealed then opening.key else nil
+	React.useEffect(function()
+		if not autoWaitingOn then
+			return nil
+		end
+		local caseId = opening.caseId
+		local thread = task.delay(AUTO_OPEN_DELAY, function()
+			openCaseRef.current(caseId, true)
+		end)
+		return function()
+			pcall(task.cancel, thread)
+		end
+	end, { autoWaitingOn })
 
 	local function sell(uid: string, onDone: () -> ())
 		setBusy(true)
@@ -186,6 +235,7 @@ local function App(props)
 					disabled = busy or not owned,
 					sound = false,
 					onClick = function()
+						stopAuto()
 						sell(opening.item.uid, function()
 							setOpening(nil)
 						end)
@@ -195,6 +245,7 @@ local function App(props)
 					text = "Keep",
 					width = 120,
 					onClick = function()
+						stopAuto()
 						setOpening(nil)
 					end,
 				},
@@ -202,9 +253,9 @@ local function App(props)
 					text = case and `Again {Format.cash(case.price)}` or "Again",
 					width = 190,
 					color = Theme.colors.good,
-					disabled = busy or not case or state.cash < case.price,
+					disabled = busy or autoRunning or not case or state.cash < case.price,
 					onClick = function()
-						openCase(opening.caseId)
+						startCase(opening.caseId)
 					end,
 				},
 			},
@@ -278,7 +329,11 @@ local function App(props)
 				caseId = selectedCase.id,
 				cash = state.cash,
 				busy = busy,
-				onOpen = openCase,
+				autoOpen = autoOpen,
+				onToggleAuto = function()
+					setAutoOpen(not autoOpen)
+				end,
+				onOpen = startCase,
 			}),
 		}),
 		InventoryWindow = e(Window, {
@@ -315,6 +370,18 @@ local function App(props)
 
 	local focusChildren = {
 		Toasts = e(Toasts),
+		StopAuto = if autoRunning
+			then e(Button, {
+				anchorPoint = Vector2.new(0.5, 0),
+				position = UDim2.new(0.5, 0, 0, 16),
+				size = UDim2.fromOffset(260, 40),
+				text = `Stop auto-open  ·  {autoCount} opened`,
+				textSize = 16,
+				color = Theme.colors.bad,
+				zIndex = 20,
+				onClick = stopAuto,
+			})
+			else nil,
 	}
 	if focusContent then
 		local contentKey = if opening

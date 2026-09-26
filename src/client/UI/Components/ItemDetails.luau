@@ -10,6 +10,7 @@ local Traits = require(Shared.Modifiers.Traits)
 local Valuation = require(Shared.Modifiers.Valuation)
 local Theme = require(script.Parent.Parent.Theme)
 local Text = require(script.Parent.Text)
+local TraitText = require(script.Parent.TraitText)
 
 local e = React.createElement
 
@@ -31,7 +32,8 @@ local function Row(props)
 			TextSize = 12,
 			TextColor3 = Theme.colors.textFaint,
 		}),
-		Value = e(Text, {
+		Value = e(TraitText, {
+			trait = props.trait,
 			Position = UDim2.fromScale(0.4, 0),
 			Size = UDim2.fromScale(0.6, 1),
 			Text = props.value,
@@ -107,7 +109,8 @@ local function ItemDetails(props)
 			}),
 		}),
 		Spacer = e("Frame", { LayoutOrder = 2, Size = UDim2.fromOffset(0, 6), BackgroundTransparency = 1 }),
-		Name = e(Text, {
+		Name = e(TraitText, {
+			trait = item.trait,
 			LayoutOrder = 3,
 			Size = UDim2.new(1, 0, 0, 24),
 			Text = (trait and (trait.name .. " ") or "") .. (info and info.name or "Unknown"),
@@ -155,6 +158,7 @@ local function ItemDetails(props)
 		Trait = e(Row, {
 			layoutOrder = 10,
 			label = "Trait",
+			trait = item.trait,
 			value = trait and (trait.name .. multiplierText(breakdown.trait)) or "None",
 			color = trait and trait.uiColor or Theme.colors.textFaint,
 		}),
