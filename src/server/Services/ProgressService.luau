@@ -269,6 +269,25 @@ local function refreshSeason(player: Player, data, placement: number?)
 
 end
 
+-- unlocks from every milestone at or below the player's level that they don't have yet, so rewards added to
+-- levels they already passed still reach them
+local function grantPastMilestones(player: Player, data)
+	local level = Career.fromXp(data.career.xp)
+	local owned = {
+		title = PlayerDataService:GetCosmetics(player, "title").unlocked,
+		nameStyle = PlayerDataService:GetCosmetics(player, "nameStyle").unlocked,
+	}
+	for passed = 1, level do
+		local milestone = Career.milestone(passed)
+		for _, kind in { "title", "nameStyle" } do
+			local id = milestone and milestone[kind]
+			if id and not table.find(owned[kind], id) then
+				CosmeticService:Unlock(player, kind, id)
+			end
+		end
+	end
+end
+
 local function withData(player: Player, fn: (any) -> ())
 	local data = PlayerDataService:GetData(player)
 	if not data then
@@ -375,6 +394,7 @@ local function refresh(player: Player)
 			refreshSeason(player, current, placement)
 		end
 		refreshQuests(player, current)
+		grantPastMilestones(player, current)
 	end)
 	if not ok then
 		warn(`[ProgressService] refresh failed for {player.Name}: {err}`)

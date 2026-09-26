@@ -79,7 +79,11 @@ local function Card(props)
 	elseif owned then
 		status, statusColor = "Click to equip", Theme.colors.textDim
 	else
-		status, statusColor = "Locked  ·  earned through quests and events", Theme.colors.textFaint
+		status = if entry.level
+			then `Locked  ·  reach career level {entry.level}`
+			elseif props.kind == "nameStyle" then "Locked  ·  exclusive, from codes and events"
+			else "Locked  ·  earned through quests and events"
+		statusColor = Theme.colors.textFaint
 	end
 
 	return e("TextButton", {

@@ -7,6 +7,7 @@
 local Shared = script.Parent.Parent
 local ItemRegistry = require(Shared.Items.ItemRegistry)
 local Traits = require(Shared.Modifiers.Traits)
+local NameStyles = require(Shared.Visuals.NameStyles)
 
 local Career = {}
 
@@ -29,19 +30,28 @@ Career.XP = {
 	dailyLogin = 20,
 }
 
--- level -> what it unlocks. titles below 30 are grey, 30 and up white (see Shared.Titles)
+-- level -> what it unlocks. titles below 30 are grey, 30 and up white (see Shared.Titles). name styles are added
+-- from their level field in Shared.Visuals.NameStyles, one style per level
 Career.MILESTONES = {
 	[5] = { title = "rookie" },
 	[10] = { title = "regular" },
 	[15] = { title = "collector" },
 	[20] = { title = "hoarder" },
-	[25] = { title = "veteran", nameStyle = "steel" },
+	[25] = { title = "veteran" },
 	[30] = { title = "tycoon" },
 	[40] = { title = "mogul" },
-	[50] = { title = "elite", nameStyle = "emerald" },
-	[75] = { title = "master", nameStyle = "crimson" },
-	[100] = { title = "grandmaster", nameStyle = "prismatic" },
+	[50] = { title = "elite" },
+	[75] = { title = "master" },
+	[100] = { title = "grandmaster" },
 }
+for _, style in NameStyles.list do
+	if style.level then
+		local milestone = Career.MILESTONES[style.level] or {}
+		assert(not milestone.nameStyle, `two name styles unlock at level {style.level}`)
+		milestone.nameStyle = style.id
+		Career.MILESTONES[style.level] = milestone
+	end
+end
 
 function Career.xpToNext(level: number): number
 	return Career.BASE_XP + Career.STEP_XP * (level - 1)
