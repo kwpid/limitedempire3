@@ -119,6 +119,7 @@ local function InventoryPage(props)
 			tagText = band.name,
 			tagColor = band.color,
 			equipped = equipped,
+			trackerCount = item.tracker and item.tracker.opens or nil,
 			onSelect = setSelectedUid,
 		})
 	end
@@ -129,7 +130,18 @@ local function InventoryPage(props)
 		local equippable = ItemRegistry.isEquippable(selected.assetId)
 		local sellValue = math.floor(Valuation.value(selected) * Config.SellRate)
 		panelChildren = {
-			Details = e(ItemDetails, { item = selected, thumbnailSize = 130 }),
+			Details = e("ScrollingFrame", {
+				Size = UDim2.new(1, 0, 1, -90),
+				BackgroundTransparency = 1,
+				BorderSizePixel = 0,
+				CanvasSize = UDim2.new(),
+				AutomaticCanvasSize = Enum.AutomaticSize.Y,
+				ScrollingDirection = Enum.ScrollingDirection.Y,
+				ScrollBarThickness = 3,
+				ScrollBarImageColor3 = Theme.colors.stroke,
+			}, {
+				Content = e(ItemDetails, { item = selected, thumbnailSize = 120 }),
+			}),
 			Buttons = e("Frame", {
 				AnchorPoint = Vector2.new(0, 1),
 				Position = UDim2.fromScale(0, 1),
@@ -219,7 +231,7 @@ local function InventoryPage(props)
 				layoutOrder = 1,
 				size = UDim2.new(1, -(RARITY_WIDTH + SHOW_WIDTH + SORT_WIDTH + 18), 1, 0),
 				value = query,
-				placeholder = "Search name, trait, #serial...",
+				placeholder = "Search name, trait, series, #serial...",
 				onChange = setQuery,
 			}),
 			Rarity = e(Dropdown, {

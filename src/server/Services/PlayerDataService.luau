@@ -12,6 +12,8 @@
 --   PlayerDataService:GetItem(player, uid) -> ItemInstance?
 --   PlayerDataService:RemoveItems(player, uids) -> { ItemInstance } (the ones that existed)
 --   PlayerDataService:SetEquipped(player, uids)
+--   PlayerDataService:UpdateItems(player, uids, mutate) -> { ItemInstance } calls mutate(item) on each owned item,
+--   the ones it returns true for are replicated as changed (used for stat tracker counts)
 --   PlayerDataService:Reset(player) (wipes the player back to the template, used by the admin panel)
 --   PlayerDataService.Loaded (signal: player), PlayerDataService.EquippedChanged (signal: player, uids),
 --   PlayerDataService.InventoryChanged (signal: player) fires after items are added, removed or wiped
@@ -158,6 +160,24 @@ function PlayerDataService:RemoveItems(player: Player, uids: { string }): { Item
 		self:SetEquipped(player, keptEquipped)
 	end
 	return removed
+end
+
+function PlayerDataService:UpdateItems(player: Player, uids: { string }, mutate: (ItemInstance) -> boolean): { ItemInstance }
+	local data = dataOf(player)
+	if not data then
+		return {}
+	end
+	local changed = {}
+	for _, uid in uids do
+		local item = data.inventory[uid]
+		if item and mutate(item) then
+			table.insert(changed, item)
+		end
+	end
+	if #changed > 0 then
+		push(player, "update", changed)
+	end
+	return changed
 end
 
 function PlayerDataService:SetEquipped(player: Player, uids: { string })

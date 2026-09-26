@@ -5,6 +5,8 @@ local Condition = require(Shared.Modifiers.Condition)
 local ItemRegistry = require(Shared.Items.ItemRegistry)
 local Tiers = require(Shared.Items.Tiers)
 local Traits = require(Shared.Modifiers.Traits)
+local CaseRegistry = require(Shared.Cases.CaseRegistry)
+local SeriesRegistry = require(Shared.Series.SeriesRegistry)
 
 local InventoryFilters = {}
 
@@ -18,6 +20,7 @@ InventoryFilters.shows = {
 	{ id = "all", label = "All items" },
 	{ id = "equipped", label = "Equipped" },
 	{ id = "traits", label = "Has trait" },
+	{ id = "tracker", label = "Stat Tracker" },
 	{ id = "mint", label = "Mint / Pristine" },
 	{ id = "serial", label = "Top 100 serial" },
 }
@@ -72,6 +75,8 @@ local function searchText(item): string
 		trait and trait.name or "",
 		Condition.fromFloat(item.float).name,
 		"#" .. item.serial,
+		SeriesRegistry.name(CaseRegistry.itemSeries(item)),
+		item.tracker and "stat tracker" or "",
 	}
 	return string.lower(table.concat(parts, " "))
 end
@@ -82,6 +87,8 @@ local function passesShow(entry, show: string, equippedSet): boolean
 		return equippedSet[item.uid] == true
 	elseif show == "traits" then
 		return item.trait ~= nil
+	elseif show == "tracker" then
+		return item.tracker ~= nil
 	elseif show == "mint" then
 		return item.float < Condition.list[2].max
 	elseif show == "serial" then

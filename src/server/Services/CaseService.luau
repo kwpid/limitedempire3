@@ -17,6 +17,7 @@ local ItemFactory = require(ServerScriptService.Server.Modules.ItemFactory)
 local ItemModelService = require(script.Parent.ItemModelService)
 local LuckService = require(script.Parent.LuckService)
 local PlayerDataService = require(script.Parent.PlayerDataService)
+local StatTrackerService = require(script.Parent.StatTrackerService)
 
 local CaseService = {}
 
@@ -60,7 +61,7 @@ function CaseService:Open(player: Player, caseId: any): Types.Result<Types.ItemI
 	local ok, result = pcall(function()
 		local assetId = ItemFactory.roll(caseId, luck)
 		ItemModelService:Prepare(assetId)
-		return ItemFactory.create(assetId, caseId, luck)
+		return ItemFactory.create(assetId, caseId, luck, player)
 	end)
 	busy[player] = nil
 
@@ -75,6 +76,7 @@ function CaseService:Open(player: Player, caseId: any): Types.Result<Types.ItemI
 		return fail("Left the game")
 	end
 	PlayerDataService:AddItem(player, item)
+	StatTrackerService:CountOpen(player)
 
 	if shouldAnnounce(item) then
 		for _, other in Players:GetPlayers() do

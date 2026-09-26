@@ -25,6 +25,11 @@ local function applyDelta(kind: string, payload: any)
 	elseif kind == "add" then
 		nextState.inventory = table.clone(state.inventory)
 		nextState.inventory[payload.uid] = payload
+	elseif kind == "update" then
+		nextState.inventory = table.clone(state.inventory)
+		for _, item in payload do
+			nextState.inventory[item.uid] = item
+		end
 	elseif kind == "remove" then
 		nextState.inventory = table.clone(state.inventory)
 		for _, uid in payload do

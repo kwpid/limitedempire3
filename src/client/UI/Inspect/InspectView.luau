@@ -3,6 +3,8 @@ local UserInputService = game:GetService("UserInputService")
 
 local React = require(ReplicatedStorage.Packages.React)
 local Shared = ReplicatedStorage.Shared
+local CaseRegistry = require(Shared.Cases.CaseRegistry)
+local SeriesRegistry = require(Shared.Series.SeriesRegistry)
 local Format = require(Shared.Util.Format)
 local ItemRegistry = require(Shared.Items.ItemRegistry)
 local Serial = require(Shared.Modifiers.Serial)
@@ -14,6 +16,7 @@ local TraitText = require(script.Parent.Parent.Components.TraitText)
 local Button = require(script.Parent.Parent.Components.Button)
 local ConfirmButton = require(script.Parent.Parent.Components.ConfirmButton)
 local WearBar = require(script.Parent.Parent.Components.WearBar)
+local TrackerBadge = require(script.Parent.Parent.Components.TrackerBadge)
 local InspectStage = require(script.Parent.Parent.Parent.Controllers.InspectStage)
 
 local e = React.createElement
@@ -172,6 +175,12 @@ local function InspectView(props)
 				TextColor3 = props.captionColor or Theme.colors.textDim,
 				display = true,
 			}),
+			Tracker = item.tracker and e(TrackerBadge, {
+				count = item.tracker.opens,
+				textSize = 13,
+				anchorPoint = Vector2.new(0, 1),
+				position = UDim2.fromOffset(0, 0),
+			}),
 			Name = e(TraitText, {
 				trait = item.trait,
 				Position = UDim2.fromOffset(0, 20),
@@ -289,8 +298,25 @@ local function InspectView(props)
 						label = "Base value",
 						value = Format.cash(breakdown.base),
 					}),
-					Released = e(Row, {
+					Tracker = item.tracker and e(Row, {
 						layoutOrder = 4,
+						label = "Stat Tracker",
+						value = `{Format.commas(item.tracker.opens)} opened`,
+						color = Theme.colors.tracker,
+					}),
+					Series = e(Row, {
+						layoutOrder = 5,
+						label = "Series",
+						value = SeriesRegistry.name(CaseRegistry.itemSeries(item)),
+					}),
+					Owner = e(Row, {
+						layoutOrder = 6,
+						label = "OG Owner",
+						value = if item.originalOwner then "@" .. item.originalOwner.name else "Unknown",
+						color = if item.originalOwner then nil else Theme.colors.textFaint,
+					}),
+					Released = e(Row, {
+						layoutOrder = 7,
 						label = "Released",
 						value = if info and info.year > 0 then tostring(info.year) else "Unknown",
 					}),

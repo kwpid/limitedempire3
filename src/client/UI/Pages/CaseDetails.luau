@@ -5,6 +5,7 @@ local CaseRegistry = require(ReplicatedStorage.Shared.Cases.CaseRegistry)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
 local ItemRegistry = require(ReplicatedStorage.Shared.Items.ItemRegistry)
+local SeriesRegistry = require(ReplicatedStorage.Shared.Series.SeriesRegistry)
 local Theme = require(script.Parent.Parent.Theme)
 local Text = require(script.Parent.Parent.Components.Text)
 local Button = require(script.Parent.Parent.Components.Button)
@@ -47,6 +48,11 @@ local function CaseDetails(props)
 	end
 
 	local affordable = props.cash >= case.price
+	local seriesNames = {}
+	for _, seriesId in case.series do
+		table.insert(seriesNames, SeriesRegistry.name(seriesId))
+	end
+	local seriesText = "Series: " .. table.concat(seriesNames, ", ")
 	local pageCount = math.max(1, math.ceil(#regular / PAGE_SIZE))
 	local currentPage = math.clamp(page, 1, pageCount)
 	local first = (currentPage - 1) * PAGE_SIZE + 1
@@ -76,8 +82,8 @@ local function CaseDetails(props)
 		BackgroundTransparency = 1,
 	}, {
 		Caption = e(Text, {
-			Size = UDim2.new(0.5, 0, 0, HEADER),
-			Text = `Contains {#regular} items + ★ rare special items`,
+			Size = UDim2.new(1, -340, 0, HEADER),
+			Text = `{seriesText}  ·  {#regular} items + ★ rare special items`,
 			TextSize = 13,
 			TextColor3 = Theme.colors.textDim,
 		}),

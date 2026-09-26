@@ -1,8 +1,10 @@
--- builds the playable cases from CaseData + every wearable item in ItemData: which case each item lands in,
--- per item odds, the hidden special pool, expected value and price. shared so the ui shows the exact odds the
--- server rolls with.
+-- builds the playable cases from CaseData + SeriesRegistry: which items each case holds (its series plus guest
+-- picks), per item odds, the hidden special pool, expected value and price. shared so the ui shows the exact odds
+-- the server rolls with.
 --
 -- api: CaseRegistry.get(caseId) -> Case?, CaseRegistry.list() -> { Case } sorted by order,
+-- CaseRegistry.seriesFor(caseId, assetId) -> series id the item counts as when unboxed from that case,
+-- CaseRegistry.itemSeries(item) -> series id of an item instance (its saved series, or worked out for old items),
 -- CaseRegistry.roll(caseId, rng, luck?) -> assetId (server uses its own Random, client only for reel filler),
 -- CaseRegistry.isSpecial(assetId) -> boolean (true for items hidden as "rare special items" in cases)
 -- luck (default 1) multiplies each item's odds by luck ^ rarity, where rarity goes from 0 (cheapest in the case)
@@ -13,6 +15,8 @@ local Config = require(Shared.Config)
 local ItemRegistry = require(Shared.Items.ItemRegistry)
 local Tiers = require(Shared.Items.Tiers)
 local Valuation = require(Shared.Modifiers.Valuation)
+local SeriesRegistry = require(Shared.Series.SeriesRegistry)
+local StableHash = require(Shared.Util.StableHash)
 local CaseData = require(script.Parent.CaseData)
 
 export type CaseItem = {
@@ -36,6 +40,8 @@ export type Case = {
 	totalWeight: number,
 	specialChance: number,
 	specialCount: number,
+	series: { string },
+	seriesOf: { [number]: string },
 }
 
 local specialTier = Tiers.get(CaseData.specialTier)
@@ -50,31 +56,46 @@ local function roundUpNice(n: number): number
 	return math.ceil(n / magnitude) * magnitude
 end
 
-local function hash(assetId: number, salt: number): number
-	local h = bit32.bxor(2166136261, salt)
-	local text = tostring(assetId)
-	for i = 1, #text do
-		h = bit32.bxor(h, string.byte(text, i))
-		h = (bit32.lshift(h, 24) + h * 403) % 4294967296
-	end
-	return h
-end
-
-local function assignItems(): { { number } }
-	local buckets = {}
-	for i = 1, #CaseData.cases do
-		buckets[i] = {}
-	end
-	for assetId in ItemRegistry.all() do
-		if ItemRegistry.isEquippable(assetId) and ItemRegistry.baseValue(assetId) > 0 then
-			local index = hash(assetId, CaseData.salt) % #CaseData.cases + 1
-			table.insert(buckets[index], assetId)
+-- every item of the case's series, then guestCount picks per guest theme among its items worth guestMinValue+.
+-- seriesOf remembers which series each item counts as when it drops from this case.
+local function gather(def): ({ number }, { [number]: string })
+	local assetIds = {}
+	local seriesOf = {}
+	for _, seriesId in def.series do
+		local series = SeriesRegistry.get(seriesId)
+		assert(series, `case "{def.id}" uses unknown series "{seriesId}"`)
+		for _, assetId in series.items do
+			if not seriesOf[assetId] then
+				seriesOf[assetId] = seriesId
+				table.insert(assetIds, assetId)
+			end
 		end
 	end
-	return buckets
+
+	local salt = StableHash.string(def.id) % 100_000
+	for _, groupId in def.guests or {} do
+		local pool = {}
+		for _, assetId in SeriesRegistry.group(groupId) do
+			if not seriesOf[assetId] and ItemRegistry.baseValue(assetId) >= CaseData.guestMinValue then
+				table.insert(pool, assetId)
+			end
+		end
+		table.sort(pool, function(a, b)
+			return StableHash.number(a, salt) < StableHash.number(b, salt)
+		end)
+		for i = 1, math.min(CaseData.guestCount, #pool) do
+			local assetId = pool[i]
+			if not seriesOf[assetId] then
+				seriesOf[assetId] = SeriesRegistry.of(assetId)[1]
+				table.insert(assetIds, assetId)
+			end
+		end
+	end
+	return assetIds, seriesOf
 end
 
-local function build(def, assetIds: { number }): Case?
+local function build(def, order: number): Case?
+	local assetIds, seriesOf = gather(def)
 	local curve = CaseData.curve
 	local normal, special = {}, {}
 	for _, assetId in assetIds do
@@ -138,7 +159,7 @@ local function build(def, assetIds: { number }): Case?
 	return {
 		id = def.id,
 		name = def.name,
-		order = def.order or 0,
+		order = def.order or order,
 		color = def.color or Color3.new(1, 1, 1),
 		price = roundUpNice(expectedValue * (1 + Config.HouseEdge)),
 		expectedValue = expectedValue,
@@ -147,16 +168,17 @@ local function build(def, assetIds: { number }): Case?
 		totalWeight = 1,
 		specialChance = specialChance,
 		specialCount = #special,
+		series = def.series,
+		seriesOf = seriesOf,
 	}
 end
 
 local byId: { [string]: Case } = {}
 local ordered: { Case } = {}
 
-local buckets = assignItems()
 for index, def in CaseData.cases do
 	assert(not byId[def.id], `duplicate case id "{def.id}"`)
-	local case = build(def, buckets[index])
+	local case = build(def, index)
 	if case then
 		byId[case.id] = case
 		table.insert(ordered, case)
@@ -175,6 +197,15 @@ end
 
 function CaseRegistry.list(): { Case }
 	return ordered
+end
+
+function CaseRegistry.seriesFor(caseId: string?, assetId: number): string?
+	local case = caseId and byId[caseId]
+	return (case and case.seriesOf[assetId]) or SeriesRegistry.of(assetId)[1]
+end
+
+function CaseRegistry.itemSeries(item: { assetId: number, caseId: string?, series: string? }): string?
+	return item.series or CaseRegistry.seriesFor(item.caseId, item.assetId)
 end
 
 function CaseRegistry.isSpecial(assetId: number): boolean

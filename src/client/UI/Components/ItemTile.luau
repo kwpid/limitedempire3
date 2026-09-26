@@ -6,6 +6,7 @@ local Theme = require(script.Parent.Parent.Theme)
 local Text = require(script.Parent.Text)
 local TraitText = require(script.Parent.TraitText)
 local Checkmark = require(script.Parent.Checkmark)
+local TrackerBadge = require(script.Parent.TrackerBadge)
 local Sfx = require(script.Parent.Parent.Parent.Controllers.Sfx)
 
 local e = React.createElement
@@ -121,6 +122,12 @@ local function ItemTile(props)
 			BackgroundColor3 = accent,
 			BorderSizePixel = 0,
 			ZIndex = 2,
+		}),
+		Tracker = props.trackerCount and e(TrackerBadge, {
+			count = props.trackerCount,
+			anchorPoint = Vector2.new(0, 1),
+			position = UDim2.new(0, 8, 1, -46),
+			zIndex = 3,
 		}),
 		Equipped = props.equipped and e(Checkmark, {
 			anchorPoint = Vector2.new(1, 1),

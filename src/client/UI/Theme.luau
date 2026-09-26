@@ -18,12 +18,14 @@ Theme.colors = {
 	cash = Color3.fromRGB(229, 186, 71),
 	marker = Color3.fromRGB(245, 185, 28),
 	special = Color3.fromRGB(228, 174, 57),
+	tracker = Color3.fromRGB(255, 142, 44),
 }
 
 Theme.radius = UDim.new(0, 2)
 
 local BODY = "rbxasset://fonts/families/GothamSSm.json"
 local DISPLAY = "rbxasset://fonts/families/Oswald.json"
+local MONO = "rbxasset://fonts/families/RobotoMono.json"
 
 function Theme.font(weight: Enum.FontWeight?): Font
 	return Font.new(BODY, weight or Enum.FontWeight.Medium)
@@ -31,6 +33,10 @@ end
 
 function Theme.display(weight: Enum.FontWeight?): Font
 	return Font.new(DISPLAY, weight or Enum.FontWeight.Medium)
+end
+
+function Theme.mono(weight: Enum.FontWeight?): Font
+	return Font.new(MONO, weight or Enum.FontWeight.Bold)
 end
 
 return Theme

@@ -1,0 +1,85 @@
+-- the themed series every wearable item belongs to. SeriesRegistry turns these rules into membership lists and
+-- CaseData builds cases out of series.
+--
+-- how an item joins a series: its name contains one of the keywords (whole words, case insensitive, "*" at the end
+-- of a word matches any ending, multi word keywords must appear in order) or its accessory kind is in kinds.
+-- series are checked top to bottom and an item joins at most maxPerItem of them, so put specific themes above
+-- broad ones. items that match nothing fall into the first era series whose years cover their release year.
+-- volumes splits a big series into numbered parts ("Royalty I", "Royalty II", ...) by a stable hash of the asset
+-- id, so regenerating ItemData never moves an item between volumes.
+--
+-- kinds: Hat, Hair, Face (face accessory), FaceDecal (classic face), Neck, Shoulder, Front, Back, Waist
+
+return {
+	maxPerItem = 2,
+	volumeSalt = 7,
+	series = {
+		{ id = "dominion", name = "Dominion",
+			keywords = { "dominus", "domino*", "emperor*", "overseer*" } },
+		{ id = "sparkle", name = "Sparkle Time",
+			keywords = { "sparkle*" } },
+		{ id = "valhalla", name = "Valhalla",
+			keywords = { "valkyrie*", "viking*", "winged", "norse", "thor", "odin", "asgard*", "valhalla" } },
+		{ id = "eggs", name = "Egg Hunt", volumes = 2,
+			keywords = { "egg*", "faberg*", "eggs*" } },
+		{ id = "halloween", name = "Halloween Nights", volumes = 2,
+			keywords = { "halloween", "pumpkin*", "zombie*", "skull*", "skeleton*", "undead", "witch*", "ghost*", "ghoul*", "vampir*", "spider*", "creepy", "haunted", "sinister", "jack o*", "grave*", "reaper", "evil", "scare*", "spooky", "spook*", "candy corn", "bat", "bats", "boo" } },
+		{ id = "winter", name = "Winter Wonderland", volumes = 3,
+			keywords = { "santa*", "winter*", "snow*", "ice", "icy", "frozen", "frost*", "christmas", "xmas", "elf", "elves", "reindeer", "antler*", "festive", "north pole", "gingerbread*", "holiday*", "yeti", "penguin*", "polar", "present*", "jolly", "sleigh", "candy cane*", "mistletoe" } },
+		{ id = "designer", name = "Designer Label",
+			keywords = { "gucci*", "burberry", "vans", "lauro", "elton*", "nars", "achille", "lola", "tommy*", "givenchy", "balenciaga", "ralph", "prada", "nike", "adidas", "fendi", "chanel", "forever 21", "valentino", "north face", "guccighost" } },
+		{ id = "factions", name = "Factions",
+			keywords = { "federation", "korblox*", "redcliff*", "overseer*", "order of", "clan", "legion*", "empire", "starstone*" } },
+		{ id = "retro", name = "Retro Arcade",
+			keywords = { "noob*", "8 bit", "bit", "pixel*", "retro", "arcade", "classic", "oof", "bloxy*", "roblox classic", "tetramino*", "byte*" } },
+		{ id = "steampunk", name = "Steamworks",
+			keywords = { "steampunk", "clockwork*", "gear", "gears", "gearworks", "cog", "cogs", "brass", "steam", "inventor*", "aviator*", "gadgetron*", "goggles" } },
+		{ id = "ninja", name = "Shadow Clan",
+			keywords = { "ninja*", "assassin*", "samurai*", "ronin", "shinobi", "masked", "kunai", "shuriken*", "rogue*", "thief", "stealth*", "shadow*" } },
+		{ id = "audio", name = "Audiophile",
+			keywords = { "headphone*", "earphone*", "beats", "boombox*", "guitar*", "music*", "dj", "radio", "speaker*", "rock*", "jams", "metal", "bass", "band" } },
+		{ id = "arcana", name = "Arcana",
+			keywords = { "wizard*", "magic*", "magical", "sorcer*", "mage", "mages", "arcane", "spell*", "enchant*", "mystic*", "mystery", "witch*", "warlock*", "alchemist*", "potion*", "rune*", "oracle", "fortune*", "merlin*", "mathemagician", "conjur*", "hex" } },
+		{ id = "fiesta", name = "Fiesta",
+			keywords = { "party", "birthday", "sombrero*", "mardi", "summer*", "summertime", "beach", "cowboy*", "luau", "carnival", "festival*", "celebrat*", "fiesta", "confetti", "surf*", "tropical", "hawaii*", "picnic", "cake*", "pinata", "new years", "fourth of july", "independence" } },
+		{ id = "blades", name = "Bladebearers",
+			keywords = { "sword*", "blade*", "katana*", "periastron*", "scimitar*", "dagger*", "axe", "scythe*", "spear*", "venomshank*", "wrath", "swordpack*", "saber*", "sabre*" } },
+		{ id = "beasts", name = "Beasts & Horns",
+			keywords = { "horn", "horns", "dragon*", "monster*", "demon*", "beast*", "wolf", "wolves", "werewolf*", "kraken*", "serpent*", "hydra", "minotaur*", "claw*", "fang*", "tentacle*", "dino*", "dragonborn*" } },
+		{ id = "scifi", name = "Sci-Fi Frontier",
+			keywords = { "robot*", "space", "laser*", "cyber*", "cyborg*", "neon", "alien*", "mech", "mecha*", "android*", "galax*", "universe", "cosmic", "astronaut*", "rocket*", "ufo", "tech*", "circuit*", "digital", "future*", "futuristic", "hologra*", "plasma", "starship", "satellite", "planet*", "gadget*", "antenna*", "trojan" } },
+		{ id = "elements", name = "Elementals",
+			keywords = { "fire*", "flame*", "inferno*", "blaze*", "lightning*", "thunder*", "storm*", "earth*", "volcan*", "lava", "magma*", "tempest*", "elemental*", "wind", "winds", "water", "ocean*", "sun", "solar", "burning", "firestarter*" } },
+		{ id = "royalty", name = "Royalty", volumes = 3,
+			keywords = { "crown*", "king", "kings", "queen*", "tiara*", "prince*", "royal*", "circlet*", "duke*", "duchess", "lord", "lords", "ruler*", "monarch*", "throne", "regal", "emperor*", "empress", "baron*", "countess", "majesty", "diadem*" } },
+		{ id = "gentry", name = "Gentry", volumes = 3,
+			keywords = { "fedora*", "bowler*", "trilby", "top hat*", "tophat*", "monocle*", "gentleman*", "dapper" } },
+		{ id = "knights", name = "Knights & Steel", volumes = 3,
+			keywords = { "knight*", "helm", "helmet*", "armor*", "armour*", "bluesteel*", "iron", "pauldron*", "warrior*", "soldier*", "guard", "guards", "guardia*", "guardian*", "paladin*", "crusader*", "centurion*", "gladiator*", "spartan*", "shield*", "sentinel*", "valor*" } },
+		{ id = "critters", name = "Critter Club", volumes = 2,
+			keywords = { "bunny", "bunnies", "rabbit*", "cat", "cats", "kitty", "kitten*", "dog", "doge", "puppy", "owl", "owls", "chicken*", "bird*", "fish*", "shark*", "bear", "bears", "fox", "panda*", "frog*", "duck*", "parrot*", "pig", "pigs", "cow", "cows", "mouse", "hamster*", "bee", "bees", "turtle*", "tortoise", "monkey*", "lion", "tiger*", "unicorn*", "llama*", "octopus", "crab", "chick", "macaw", "fowl", "turkey*", "pony", "penguin*", "jellyfish", "jeggyfish", "bat", "snail*", "lizard*" } },
+		{ id = "hair", name = "Hair Salon", kinds = { "Hair" },
+			keywords = { "hair", "hairdo", "locks", "ponytail*", "mohawk*", "pigtail*", "braid*", "bun", "curls", "bangs", "mullet", "shaggy", "blondie", "brunette", "hairstyle*" } },
+		{ id = "faces", name = "Face Gallery", volumes = 3, kinds = { "Face", "FaceDecal" },
+			keywords = {} },
+		{ id = "shoulder", name = "Shoulder Pals", kinds = { "Shoulder" },
+			keywords = { "shoulder*", "headrow*", "pal", "pals", "buddy", "buddies", "companion*", "friend", "friends", "shoulderfriend*" } },
+		{ id = "neckwear", name = "Dressed Up", volumes = 2, kinds = { "Neck" },
+			keywords = { "tie", "ties", "bowtie*", "bow tie", "scarf*", "necklace*", "chain", "chains", "collar*", "pendant*", "amulet*", "medal*", "lanyard*", "medallion*" } },
+		{ id = "backbling", name = "Back Bling", volumes = 2, kinds = { "Back", "Waist", "Front" },
+			keywords = { "wings", "wing", "cape", "capes", "cloak*", "backpack*", "bag", "bags", "swordpack*", "jetpack*", "quiver*" } },
+		{ id = "shades", name = "Shades Collective",
+			keywords = { "shades", "glasses", "sunglasses", "sunshades", "goggles", "visor", "specs", "spectacles", "monocle*", "eyewear", "lens*" } },
+		{ id = "gems", name = "Treasure Trove",
+			keywords = { "emerald*", "ruby", "rubies", "sapphire*", "diamond*", "crystal*", "amethyst*", "golden", "gold", "silver", "bling*", "chrome*", "jewel*", "gem", "gems", "gemstone*", "platinum", "topaz", "opal", "pearl*", "bejeweled", "24k", "treasure*" } },
+		{ id = "street", name = "Street Wear", volumes = 2,
+			keywords = { "cap", "caps", "beanie*", "bucket", "baseball", "headband*", "bandana*", "knit", "snapback", "visor", "hoodie", "hood", "trucker", "headphones" } },
+	},
+	eras = {
+		{ id = "vintage", name = "Vintage Vault", fromYear = 0, toYear = 2009 },
+		{ id = "class2010", name = "Class of 2010", fromYear = 2010, toYear = 2010 },
+		{ id = "class2011", name = "Class of 2011", fromYear = 2011, toYear = 2011 },
+		{ id = "class2012", name = "Class of 2012", fromYear = 2012, toYear = 2013 },
+		{ id = "modern", name = "Modern Mix", fromYear = 2014, toYear = math.huge },
+	},
+}

@@ -1,3 +1,4 @@
+local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local React = require(ReplicatedStorage.Packages.React)
@@ -6,6 +7,7 @@ local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Theme = require(script.Parent.Parent.Theme)
 local Text = require(script.Parent.Parent.Components.Text)
 local NameLabel = require(script.Parent.Parent.Components.NameLabel)
+local TrackerBadge = require(script.Parent.Parent.Components.TrackerBadge)
 local usePlayerAttribute = require(script.Parent.Parent.Hooks.usePlayerAttribute)
 local usePlayerValue = require(script.Parent.Parent.Hooks.usePlayerValue)
 
@@ -15,10 +17,52 @@ local e = React.createElement
 local DESIGN_WIDTH = 260
 local DESIGN_HEIGHT = 74
 
+-- the server mirrors equipped stat trackers to this attribute as json: { { a = assetId string, n = count } }
+local function parseTrackers(raw: any): { { assetId: number, count: number } }
+	if type(raw) ~= "string" then
+		return {}
+	end
+	local ok, decoded = pcall(HttpService.JSONDecode, HttpService, raw)
+	if not ok or type(decoded) ~= "table" then
+		return {}
+	end
+	local list = {}
+	for _, entry in decoded do
+		local assetId = tonumber(entry.a)
+		if assetId and type(entry.n) == "number" then
+			table.insert(list, { assetId = assetId, count = entry.n })
+		end
+	end
+	return list
+end
+
 local function Overhead(props)
 	local player: Player = props.player
 	local styleId = usePlayerAttribute("NameStyle", player)
 	local value = usePlayerValue(player)
+	local trackersRaw = usePlayerAttribute("StatTrackers", player)
+	local trackers = React.useMemo(function()
+		return parseTrackers(trackersRaw)
+	end, { trackersRaw })
+
+	local trackerChildren = {
+		Layout = e("UIListLayout", {
+			FillDirection = Enum.FillDirection.Horizontal,
+			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			VerticalAlignment = Enum.VerticalAlignment.Bottom,
+			Padding = UDim.new(0, 4),
+			Wraps = true,
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		}),
+	}
+	for index, tracker in trackers do
+		trackerChildren["Tracker" .. index] = e(TrackerBadge, {
+			layoutOrder = index,
+			count = tracker.count,
+			assetId = tracker.assetId,
+			textSize = 12,
+		})
+	end
 	local billboardRef = React.useRef(nil :: BillboardGui?)
 	local scale, setScale = React.useState(0)
 
@@ -56,6 +100,14 @@ local function Overhead(props)
 			BackgroundTransparency = 1,
 		}, {
 			Scale = e("UIScale", { Scale = scale }),
+			Trackers = if #trackers > 0
+				then e("Frame", {
+					LayoutOrder = 0,
+					Size = UDim2.fromScale(1, 0),
+					AutomaticSize = Enum.AutomaticSize.Y,
+					BackgroundTransparency = 1,
+				}, trackerChildren)
+				else nil,
 			Layout = e("UIListLayout", {
 				FillDirection = Enum.FillDirection.Vertical,
 				HorizontalAlignment = Enum.HorizontalAlignment.Center,

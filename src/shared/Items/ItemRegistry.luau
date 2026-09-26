@@ -1,6 +1,7 @@
 -- read-only lookup over the generated ItemData, plus helpers for equipping and thumbnails.
 -- api: ItemRegistry.all() -> the whole ItemData table (read only), ItemRegistry.get(assetId), .baseValue(assetId), .tier(assetId), .accessoryType(assetId),
--- .isFace(assetId), .isEquippable(assetId), .thumbnail(assetId, size?)
+-- .isFace(assetId), .isEquippable(assetId), .kind(assetId) -> "Hat" | "Hair" | "Face" | "FaceDecal" | "Neck" | ... or nil,
+-- .thumbnail(assetId, size?)
 
 local ItemData = require(script.Parent.ItemData)
 local Tiers = require(script.Parent.Tiers)
@@ -27,6 +28,18 @@ local ACCESSORY_TYPES: { [number]: Enum.AccessoryType } = {
 }
 
 local FACE_ASSET_TYPE = 18
+
+local KINDS: { [number]: string } = {
+	[8] = "Hat",
+	[41] = "Hair",
+	[42] = "Face",
+	[43] = "Neck",
+	[44] = "Shoulder",
+	[45] = "Front",
+	[46] = "Back",
+	[47] = "Waist",
+	[FACE_ASSET_TYPE] = "FaceDecal",
+}
 
 local ItemRegistry = {}
 
@@ -59,6 +72,11 @@ end
 
 function ItemRegistry.isEquippable(assetId: number): boolean
 	return ItemRegistry.accessoryType(assetId) ~= nil or ItemRegistry.isFace(assetId)
+end
+
+function ItemRegistry.kind(assetId: number): string?
+	local info = ItemData[assetId]
+	return info and KINDS[info.assetType]
 end
 
 function ItemRegistry.thumbnail(assetId: number, size: number?): string

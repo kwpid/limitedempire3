@@ -5,6 +5,8 @@
 -- SellHoldSeconds before the confirm click works.
 -- Overhead.ShowOwn shows your own overhead above your character. overheads are WidthStuds wide in the world, so they
 -- shrink as you zoom out like any other object. MaxDistance (studs) hides them past that range, math.huge = always visible.
+-- StatTracker.Chance is the odds an unboxed item comes with a stat tracker (counts cases opened while the item is
+-- equipped), Multiplier is the value bonus for having one. the count itself does not change the value.
 
 local Config = {
 	GameName = "Limited Empire",
@@ -26,6 +28,11 @@ local Config = {
 
 	SellHoldValue = 1_000_000,
 	SellHoldSeconds = 3,
+
+	StatTracker = {
+		Chance = 1 / 60,
+		Multiplier = 1.2,
+	},
 
 	Overhead = {
 		ShowOwn = true,
