@@ -8,6 +8,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local PlayerStats = require(ReplicatedStorage.Shared.PlayerStats)
 
 local DATA_VERSION = 2
 
@@ -22,6 +23,8 @@ function DataConfig.template()
 		cash = Config.StartingCash,
 		inventory = {},
 		equipped = {},
+		settings = {},
+		stats = PlayerStats.defaults(),
 	}
 end
 

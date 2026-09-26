@@ -3,10 +3,14 @@
 -- the server rolls with.
 --
 -- api: CaseRegistry.get(caseId) -> Case?, CaseRegistry.list() -> { Case } sorted by order,
+-- CaseRegistry.caseSeries() -> { CaseSeries } in display order (each with its cases),
 -- CaseRegistry.seriesFor(caseId, assetId) -> series id the item counts as when unboxed from that case,
 -- CaseRegistry.itemSeries(item) -> series id of an item instance (its saved series, or worked out for old items),
 -- CaseRegistry.roll(caseId, rng, luck?) -> assetId (server uses its own Random, client only for reel filler),
 -- CaseRegistry.isSpecial(assetId) -> boolean (true for items hidden as "rare special items" in cases)
+-- CaseRegistry.chanceOf(caseId?, assetId) -> number? (base odds of that item in that case, nil if not in it)
+-- CaseRegistry.rollTier(caseId, tierId, rng) -> assetId? (odds weighted roll among the case's items of that tier,
+-- nil if the case has none, used by admin test overrides)
 -- luck (default 1) multiplies each item's odds by luck ^ rarity, where rarity goes from 0 (cheapest in the case)
 -- to 1 (most expensive), so luck mostly boosts the special pool. there is no cap.
 
@@ -27,6 +31,14 @@ export type CaseItem = {
 	special: boolean,
 }
 
+export type CaseSeries = {
+	id: string,
+	name: string,
+	description: string,
+	color: Color3,
+	cases: { Case },
+}
+
 export type Case = {
 	id: string,
 	name: string,
@@ -41,6 +53,8 @@ export type Case = {
 	specialCount: number,
 	series: { string },
 	seriesOf: { [number]: string },
+	caseSeries: string?,
+	topValue: number,
 }
 
 local SPECIAL_MIN_VALUE = CaseData.specialMinValue
@@ -183,6 +197,13 @@ local function build(def, order: number): Case?
 		end
 	end
 
+	local bestVisible = normal[1]
+	for _, entry in normal do
+		if entry.value > bestVisible.value then
+			bestVisible = entry
+		end
+	end
+
 	local expectedValue = expectedBase * Valuation.expectedModifierMultiplier()
 	return {
 		id = def.id,
@@ -198,6 +219,8 @@ local function build(def, order: number): Case?
 		specialCount = #special,
 		series = def.series,
 		seriesOf = seriesOf,
+		caseSeries = nil,
+		topValue = bestVisible.value,
 	}
 end
 
@@ -217,6 +240,41 @@ table.sort(ordered, function(a, b)
 	return a.order < b.order
 end)
 
+local seriesList: { CaseSeries } = {}
+for _, def in CaseData.caseSeries or {} do
+	local group: CaseSeries = {
+		id = def.id,
+		name = def.name,
+		description = def.description or "",
+		color = def.color or Color3.new(1, 1, 1),
+		cases = {},
+	}
+	for _, caseId in def.cases do
+		local case = byId[caseId]
+		assert(case, `case series "{def.id}" uses unknown case "{caseId}"`)
+		assert(not case.caseSeries, `case "{caseId}" is in more than one case series`)
+		case.caseSeries = def.id
+		table.insert(group.cases, case)
+	end
+	table.insert(seriesList, group)
+end
+local leftovers = {}
+for _, case in ordered do
+	if not case.caseSeries then
+		case.caseSeries = "other"
+		table.insert(leftovers, case)
+	end
+end
+if #leftovers > 0 then
+	table.insert(seriesList, {
+		id = "other",
+		name = "More Cases",
+		description = "",
+		color = Color3.new(1, 1, 1),
+		cases = leftovers,
+	})
+end
+
 local CaseRegistry = {}
 
 function CaseRegistry.get(caseId: string): Case?
@@ -225,6 +283,10 @@ end
 
 function CaseRegistry.list(): { Case }
 	return ordered
+end
+
+function CaseRegistry.caseSeries(): { CaseSeries }
+	return seriesList
 end
 
 function CaseRegistry.seriesFor(caseId: string?, assetId: number): string?
@@ -238,6 +300,45 @@ end
 
 function CaseRegistry.isSpecial(assetId: number): boolean
 	return ItemRegistry.baseValue(assetId) >= SPECIAL_MIN_VALUE
+end
+
+function CaseRegistry.chanceOf(caseId: string?, assetId: number): number?
+	local case = caseId and byId[caseId]
+	if not case then
+		return nil
+	end
+	for _, item in case.items do
+		if item.assetId == assetId then
+			return item.chance
+		end
+	end
+	return nil
+end
+
+function CaseRegistry.rollTier(caseId: string, tierId: string, rng: Random): number?
+	local case = byId[caseId]
+	if not case then
+		return nil
+	end
+	local total = 0
+	local matching = {}
+	for _, item in case.items do
+		if ItemRegistry.tier(item.assetId).id == tierId then
+			table.insert(matching, item)
+			total += item.weight
+		end
+	end
+	if #matching == 0 then
+		return nil
+	end
+	local r = rng:NextNumber() * total
+	for _, item in matching do
+		r -= item.weight
+		if r <= 0 then
+			return item.assetId
+		end
+	end
+	return matching[#matching].assetId
 end
 
 function CaseRegistry.roll(caseId: string, rng: Random, luck: number?): number

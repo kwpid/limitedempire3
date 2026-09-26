@@ -4,9 +4,9 @@
 -- Traits.multiplier(id?) -> number, Traits.expectedMultiplier() -> number
 -- visuals are read by the shared ItemEffects module, colors by the ui.
 --
--- stacking: an item can have up to MAX_TRAITS traits. after the first trait lands, every other trait rolls its own
--- base chance (luck ignored, rarest first) for a second one, so doubles are about as rare as both odds together
--- (shiny + golden ~1 in 12,500, rainbow + void ~1 in 25 million). stacked traits add instead of multiplying: the
+-- stacking: an item can have up to MAX_TRAITS traits. after the first trait lands, every other trait rolls
+-- SECOND_TRAIT_ODDS of its base chance (luck ignored, rarest first) for a second one, so doubles are rarer than
+-- both odds together (about 1 in 6,000 unboxes get two, shiny + frozen ~1 in 15,000, rainbow + void ~1 in 60 million). stacked traits add instead of multiplying: the
 -- best trait counts in full and every other one adds STACK_SHARE of its bonus (glitched + void = 40 + 7 = x47).
 -- Traits.rollAll(rng, luck?) -> { trait id } best first (0 to MAX_TRAITS), Traits.of(item) -> { trait id } best
 -- first, Traits.combinedMultiplier(ids) -> number, Traits.label(ids) -> "Void + Glitched" or nil,
@@ -50,6 +50,18 @@ local LIST: { Trait } = {
 		particleRate = 4,
 	},
 	{
+		id = "frozen",
+		name = "Frozen",
+		chance = 1 / 120,
+		multiplier = 2,
+		announce = false,
+		color = ColorSequence.new(Color3.fromRGB(210, 245, 255), Color3.fromRGB(110, 190, 255)),
+		uiColor = Color3.fromRGB(150, 220, 255),
+		light = false,
+		particleRate = 5,
+		meshTint = Vector3.new(0.75, 0.95, 1.3),
+	},
+	{
 		id = "golden",
 		name = "Golden",
 		chance = 1 / 250,
@@ -60,6 +72,17 @@ local LIST: { Trait } = {
 		light = true,
 		particleRate = 6,
 		meshTint = Vector3.new(1.4, 1.1, 0.35),
+	},
+	{
+		id = "neon",
+		name = "Neon",
+		chance = 1 / 500,
+		multiplier = 4,
+		announce = false,
+		color = ColorSequence.new(Color3.fromRGB(255, 60, 200), Color3.fromRGB(60, 230, 255)),
+		uiColor = Color3.fromRGB(255, 70, 210),
+		light = true,
+		particleRate = 8,
 	},
 	{
 		id = "rainbow",
@@ -73,6 +96,22 @@ local LIST: { Trait } = {
 		particleRate = 10,
 	},
 	{
+		id = "inferno",
+		name = "Inferno",
+		chance = 1 / 2_500,
+		multiplier = 10,
+		announce = true,
+		color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 230, 90)),
+			ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 110, 20)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 20, 10)),
+		}),
+		uiColor = Color3.fromRGB(255, 110, 30),
+		light = true,
+		particleRate = 12,
+		meshTint = Vector3.new(1.3, 0.6, 0.3),
+	},
+	{
 		id = "glitched",
 		name = "Glitched",
 		chance = 1 / 5_000,
@@ -82,6 +121,21 @@ local LIST: { Trait } = {
 		uiColor = Color3.fromRGB(0, 255, 170),
 		light = true,
 		particleRate = 14,
+	},
+	{
+		id = "celestial",
+		name = "Celestial",
+		chance = 1 / 12_000,
+		multiplier = 25,
+		announce = true,
+		color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+			ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 225, 140)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 160, 255)),
+		}),
+		uiColor = Color3.fromRGB(255, 230, 160),
+		light = true,
+		particleRate = 16,
 	},
 	{
 		id = "void",
@@ -95,6 +149,23 @@ local LIST: { Trait } = {
 		particleRate = 18,
 		meshTint = Vector3.new(0.3, 0.15, 0.45),
 	},
+	{
+		id = "singularity",
+		name = "Singularity",
+		chance = 1 / 250_000,
+		multiplier = 150,
+		announce = true,
+		color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+			ColorSequenceKeypoint.new(0.3, Color3.fromRGB(255, 150, 60)),
+			ColorSequenceKeypoint.new(0.6, Color3.fromRGB(120, 40, 255)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0)),
+		}),
+		uiColor = Color3.fromRGB(235, 225, 255),
+		light = true,
+		particleRate = 26,
+		meshTint = Vector3.new(0.06, 0.05, 0.1),
+	},
 }
 
 local byId: { [string]: Trait } = {}
@@ -106,6 +177,7 @@ local MAX_TRAIT_TOTAL = 0.95
 local RARITY_TILT = 0.15
 local MAX_TRAITS = 2
 local STACK_SHARE = 0.5
+local SECOND_TRAIT_ODDS = 0.2
 
 local Traits = {}
 Traits.list = LIST
@@ -180,7 +252,7 @@ function Traits.rollAll(rng: Random, luck: number?): { string }
 			break
 		end
 		local trait = LIST[i]
-		if trait.id ~= first and rng:NextNumber() < trait.chance then
+		if trait.id ~= first and rng:NextNumber() < trait.chance * SECOND_TRAIT_ODDS then
 			table.insert(ids, trait.id)
 		end
 	end
@@ -229,9 +301,9 @@ for i, first in LIST do
 	for j = #LIST, 1, -1 do
 		if j ~= i then
 			local second = LIST[j]
-			local chance = noneRarer * second.chance
+			local chance = noneRarer * second.chance * SECOND_TRAIT_ODDS
 			expected += first.chance * chance * (Traits.combinedMultiplier({ first.id, second.id }) - first.multiplier)
-			noneRarer *= 1 - second.chance
+			noneRarer *= 1 - second.chance * SECOND_TRAIT_ODDS
 		end
 	end
 end

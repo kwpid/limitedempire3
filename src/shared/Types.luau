@@ -30,6 +30,8 @@ export type PlayerState = {
 	cash: number,
 	inventory: { [string]: ItemInstance },
 	equipped: { string },
+	settings: { [string]: any }, -- only the values the player changed, read through Settings.resolve
+	stats: { [string]: number },
 	version: number,
 }
 

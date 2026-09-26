@@ -13,6 +13,8 @@ local state: Types.PlayerState = {
 	cash = 0,
 	inventory = {},
 	equipped = {},
+	settings = {},
+	stats = {},
 	version = 0,
 }
 local loaded = false
@@ -37,10 +39,16 @@ local function applyDelta(kind: string, payload: any)
 		end
 	elseif kind == "equipped" then
 		nextState.equipped = payload
+	elseif kind == "settings" then
+		nextState.settings = payload
+	elseif kind == "stats" then
+		nextState.stats = payload
 	elseif kind == "replace" then
 		nextState.cash = payload.cash
 		nextState.inventory = payload.inventory
 		nextState.equipped = payload.equipped
+		nextState.settings = payload.settings
+		nextState.stats = payload.stats
 	end
 	state = nextState
 end

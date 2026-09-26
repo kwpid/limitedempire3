@@ -1,6 +1,8 @@
 local ContentProvider = game:GetService("ContentProvider")
 local SoundService = game:GetService("SoundService")
 
+local ClientSettings = require(script.Parent.ClientSettings)
+
 local SOUNDS = {
 	click = { id = 15675059323, volume = 0.45 },
 	tab = { id = 15675032796, volume = 0.5 },
@@ -48,13 +50,15 @@ end
 
 function Sfx.play(name: string, speed: number?)
 	local pool = pools[name]
-	if not pool then
+	local volume = ClientSettings.get("sfxVolume") or 1
+	if not pool or volume <= 0 then
 		return
 	end
 	local index = cursors[name] % #pool + 1
 	cursors[name] = index
 	local sound = pool[index]
 	sound.PlaybackSpeed = speed or SOUNDS[name].speed or 1
+	sound.Volume = (SOUNDS[name].volume or 0.5) * volume
 	sound.TimePosition = 0
 	sound:Play()
 end

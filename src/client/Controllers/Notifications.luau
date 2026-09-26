@@ -7,6 +7,7 @@ local Signal = require(Shared.Util.Signal)
 local Traits = require(Shared.Modifiers.Traits)
 local Valuation = require(Shared.Modifiers.Valuation)
 local Format = require(Shared.Util.Format)
+local ClientSettings = require(script.Parent.ClientSettings)
 
 export type Notification = {
 	id: number,
@@ -31,6 +32,9 @@ end
 
 function Notifications.start()
 	Net.events.Announce.OnClientEvent:Connect(function(displayName: string, item)
+		if not ClientSettings.get("announcements") then
+			return
+		end
 		local info = ItemRegistry.get(item.assetId)
 		local traits = Traits.of(item)
 		local trait = Traits.get(traits[1])

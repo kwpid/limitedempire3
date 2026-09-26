@@ -17,6 +17,7 @@ local FUNCTIONS = {
 	"SetEquipped",
 	"AdminAction",
 	"RequestItemModel",
+	"SetSetting",
 }
 
 local FOLDER_NAME = "Remotes"

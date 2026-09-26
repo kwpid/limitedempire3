@@ -6,6 +6,7 @@ local CaseRegistry = require(ReplicatedStorage.Shared.Cases.CaseRegistry)
 local ItemRegistry = require(ReplicatedStorage.Shared.Items.ItemRegistry)
 local Theme = require(script.Parent.Parent.Theme)
 local Sfx = require(script.Parent.Parent.Parent.Controllers.Sfx)
+local ClientSettings = require(script.Parent.Parent.Parent.Controllers.ClientSettings)
 local SpecialTile = require(script.Parent.Parent.Components.SpecialTile)
 local TierGradient = require(script.Parent.Parent.Components.TierGradient)
 
@@ -18,6 +19,7 @@ local STRIDE = TILE_W + GAP
 local COUNT = 56
 local WIN_INDEX = 48
 local DURATION = 6
+local QUICK_DURATION = 2.5
 
 local function easeOut(t: number): number
 	return 1 - (1 - t) ^ 4
@@ -64,16 +66,18 @@ local function Reel(props)
 
 	React.useLayoutEffect(function()
 		local start = os.clock()
+		local duration = if ClientSettings.get("quickOpen") then QUICK_DURATION else DURATION
+		local ticks = ClientSettings.get("reelTicks")
 		local finished = false
 		local lastTile = nil
 		local connection
 		connection = RunService.RenderStepped:Connect(function()
-			local t = math.clamp((os.clock() - start) / DURATION, 0, 1)
+			local t = math.clamp((os.clock() - start) / duration, 0, 1)
 			local x = startOffset + (target - startOffset) * easeOut(t)
 			setOffset(x)
 			local tile = math.floor((x + width / 2) / STRIDE)
 			if tile ~= lastTile then
-				if lastTile then
+				if lastTile and ticks then
 					Sfx.play("tick", 1 + (math.random() - 0.5) * 0.1)
 				end
 				lastTile = tile

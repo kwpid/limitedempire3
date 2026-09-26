@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local React = require(ReplicatedStorage.Packages.React)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Overhead = require(script.Parent.Overhead)
+local useSetting = require(script.Parent.Parent.Hooks.useSetting)
 
 local e = React.createElement
 
@@ -11,6 +12,8 @@ local HEAD_WAIT = 10
 
 local function OverheadLayer()
 	local heads, setHeads = React.useState({})
+	local showOthers = useSetting("showOverheads")
+	local showOwn = useSetting("showOwnOverhead")
 
 	React.useLayoutEffect(function()
 		local connections: { [Player]: { RBXScriptConnection } } = {}
@@ -79,6 +82,10 @@ local function OverheadLayer()
 
 	local children = {}
 	for player, head in heads do
+		local isLocal = player == Players.LocalPlayer
+		if (isLocal and not showOwn) or (not isLocal and not showOthers) then
+			continue
+		end
 		children["Overhead" .. player.UserId] = e(Overhead, {
 			player = player,
 			head = head,

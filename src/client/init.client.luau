@@ -12,6 +12,7 @@ local AvatarWear = require(Controllers.AvatarWear)
 local Preloader = require(Controllers.Preloader)
 local WearRenderer = require(Controllers.WearRenderer)
 local Perf = require(Controllers.Perf)
+local EffectsToggle = require(Controllers.EffectsToggle)
 local App = require(script:WaitForChild("UI"):WaitForChild("App"))
 local OverheadLayer = require(script.UI:WaitForChild("Overheads"):WaitForChild("OverheadLayer"))
 
@@ -23,6 +24,7 @@ Sfx.start()
 PlayerState.start()
 Notifications.start()
 AvatarWear.start()
+EffectsToggle.start()
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 

@@ -19,19 +19,19 @@ local CasesPage = require(script.Parent.Pages.CasesPage)
 local CaseDetails = require(script.Parent.Pages.CaseDetails)
 local InventoryPage = require(script.Parent.Pages.InventoryPage)
 local AdminPage = require(script.Parent.Pages.AdminPage)
+local SettingsPage = require(script.Parent.Pages.SettingsPage)
 local OpeningOverlay = require(script.Parent.Opening.OpeningOverlay)
 local InspectView = require(script.Parent.Inspect.InspectView)
 local usePlayerState = require(script.Parent.Hooks.usePlayerState)
 local useIsAdmin = require(script.Parent.Hooks.useIsAdmin)
 local useFocusMode = require(script.Parent.Hooks.useFocusMode)
 local Actions = require(script.Parent.Parent.Controllers.Actions)
+local ClientSettings = require(script.Parent.Parent.Controllers.ClientSettings)
 local Notifications = require(script.Parent.Parent.Controllers.Notifications)
 local Sfx = require(script.Parent.Parent.Controllers.Sfx)
 local Perf = require(script.Parent.Parent.Controllers.Perf)
 
 local e = React.createElement
-
-local AUTO_OPEN_DELAY = 1.5
 
 local function playReveal(item)
 	local traits = Traits.of(item)
@@ -56,6 +56,15 @@ local function sellConfirm(value: number)
 		text = "Confirm sell",
 		holdSeconds = if value >= Config.SellHoldValue then Config.SellHoldSeconds else 0,
 	}
+end
+
+local function caseSeriesName(case): string?
+	for _, group in CaseRegistry.caseSeries() do
+		if group.id == case.caseSeries then
+			return group.name
+		end
+	end
+	return nil
 end
 
 local function fail(message: string?)
@@ -145,7 +154,7 @@ local function App(props)
 		end
 	end
 
-	-- auto-open: once the unboxed item has been shown for AUTO_OPEN_DELAY, buy and open the same case again.
+	-- auto-open: once the unboxed item has been shown for the autoOpenDelay setting, buy and open the same case again.
 	-- the ref keeps the delayed call on the latest render so it sees fresh cash and busy state.
 	local openCaseRef = React.useRef(openCase)
 	openCaseRef.current = openCase
@@ -155,7 +164,7 @@ local function App(props)
 			return nil
 		end
 		local caseId = opening.caseId
-		local thread = task.delay(AUTO_OPEN_DELAY, function()
+		local thread = task.delay(ClientSettings.get("autoOpenDelay") or 1.5, function()
 			openCaseRef.current(caseId, true)
 		end)
 		return function()
@@ -228,42 +237,65 @@ local function App(props)
 		local case = CaseRegistry.get(opening.caseId)
 		local owned = state.inventory[opening.item.uid] ~= nil
 		local sellValue = math.floor(Valuation.value(opening.item) * Config.SellRate)
+		local autoSoldFor = opening.item.autoSoldFor
+		local again = {
+			text = case and `Again {Format.cash(case.price)}` or "Again",
+			width = 190,
+			color = Theme.colors.good,
+			disabled = busy or autoRunning or not case or state.cash < case.price,
+			onClick = function()
+				startCase(opening.caseId)
+			end,
+		}
+		local caption = if CaseRegistry.isSpecial(opening.item.assetId)
+			then "★ You unboxed a rare special item"
+			else "You unboxed"
+		if autoSoldFor then
+			caption = `Auto-sold for {Format.cash(autoSoldFor)}`
+		end
 		focusContent = e(InspectView, {
 			item = opening.item,
-			caption = if CaseRegistry.isSpecial(opening.item.assetId) then "★ You unboxed a rare special item" else "You unboxed",
-			captionColor = if CaseRegistry.isSpecial(opening.item.assetId) then Theme.colors.special else nil,
-			actions = {
-				{
-					text = `Sell {Format.cash(sellValue)}`,
-					confirm = sellConfirm(sellValue),
-					width = 170,
-					disabled = busy or not owned,
-					sound = false,
-					onClick = function()
-						stopAuto()
-						sell(opening.item.uid, function()
+			caption = caption,
+			captionColor = if autoSoldFor
+				then Theme.colors.cash
+				elseif CaseRegistry.isSpecial(opening.item.assetId) then Theme.colors.special
+				else nil,
+			actions = if autoSoldFor
+				then {
+					{
+						text = "Continue",
+						width = 150,
+						onClick = function()
+							stopAuto()
 							setOpening(nil)
-						end)
-					end,
+						end,
+					},
+					again,
+				}
+				else {
+					{
+						text = `Sell {Format.cash(sellValue)}`,
+						confirm = sellConfirm(sellValue),
+						width = 170,
+						disabled = busy or not owned,
+						sound = false,
+						onClick = function()
+							stopAuto()
+							sell(opening.item.uid, function()
+								setOpening(nil)
+							end)
+						end,
+					},
+					{
+						text = "Keep",
+						width = 120,
+						onClick = function()
+							stopAuto()
+							setOpening(nil)
+						end,
+					},
+					again,
 				},
-				{
-					text = "Keep",
-					width = 120,
-					onClick = function()
-						stopAuto()
-						setOpening(nil)
-					end,
-				},
-				{
-					text = case and `Again {Format.cash(case.price)}` or "Again",
-					width = 190,
-					color = Theme.colors.good,
-					disabled = busy or autoRunning or not case or state.cash < case.price,
-					onClick = function()
-						startCase(opening.caseId)
-					end,
-				},
-			},
 		})
 	elseif inspectItem then
 		local equipped = table.find(state.equipped, inspectItem.uid) ~= nil
@@ -316,7 +348,9 @@ local function App(props)
 		CasesWindow = e(Window, {
 			visible = page == "cases",
 			title = selectedCase and selectedCase.name or "Cases",
-			subtitle = if selectedCase then nil else `{#CaseRegistry.list()} cases available`,
+			subtitle = if selectedCase
+				then caseSeriesName(selectedCase)
+				else `{#CaseRegistry.caseSeries()} series  ·  {#CaseRegistry.list()} cases`,
 			onBack = if selectedCase then backToCases else nil,
 			onClose = close,
 		}, {
@@ -352,6 +386,14 @@ local function App(props)
 				equipped = state.equipped,
 				onInspect = setInspectUid,
 			}),
+		}),
+		SettingsWindow = e(Window, {
+			visible = page == "settings",
+			title = "Settings",
+			subtitle = "saved to your account",
+			onClose = close,
+		}, {
+			Page = e(SettingsPage, { stats = state.stats }),
 		}),
 		AdminWindow = if isAdmin
 			then e(Window, {

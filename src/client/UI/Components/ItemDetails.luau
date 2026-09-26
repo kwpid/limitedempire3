@@ -16,6 +16,7 @@ local Text = require(script.Parent.Text)
 local TraitText = require(script.Parent.TraitText)
 local TrackerBadge = require(script.Parent.TrackerBadge)
 local TierGradient = require(script.Parent.TierGradient)
+local useSetting = require(script.Parent.Parent.Hooks.useSetting)
 
 local e = React.createElement
 
@@ -72,6 +73,7 @@ local function ItemDetails(props)
 	local info = ItemRegistry.get(item.assetId)
 	local tier = ItemRegistry.tier(item.assetId)
 	local band = Condition.fromFloat(item.float)
+	local advanced = useSetting("advancedStats")
 	local traitIds = Traits.of(item)
 	local trait = Traits.get(traitIds[1])
 	local stacked = Traits.get(traitIds[2])
@@ -213,6 +215,25 @@ local function ItemDetails(props)
 			label = "OG Owner",
 			value = ownerText(item.originalOwner),
 			color = if item.originalOwner then nil else Theme.colors.textFaint,
+		}),
+		Odds = advanced and e(Row, {
+			layoutOrder = 15,
+			label = "Drop chance",
+			value = (function()
+				local chance = CaseRegistry.chanceOf(item.caseId, item.assetId)
+				local case = item.caseId and CaseRegistry.get(item.caseId)
+				return if chance and case then `{Format.odds(chance)} ({case.name})` else "Unknown"
+			end)(),
+		}),
+		AssetId = advanced and e(Row, {
+			layoutOrder = 16,
+			label = "Asset ID",
+			value = tostring(item.assetId),
+		}),
+		Unboxed = advanced and e(Row, {
+			layoutOrder = 17,
+			label = "Unboxed",
+			value = os.date("%b %d, %Y  %H:%M", item.obtainedAt),
 		}),
 	})
 end

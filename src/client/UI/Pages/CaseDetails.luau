@@ -13,6 +13,7 @@ local Grid = require(script.Parent.Parent.Components.Grid)
 local ItemTile = require(script.Parent.Parent.Components.ItemTile)
 local SpecialTile = require(script.Parent.Parent.Components.SpecialTile)
 local Preloader = require(script.Parent.Parent.Parent.Controllers.Preloader)
+local useSetting = require(script.Parent.Parent.Hooks.useSetting)
 
 local e = React.createElement
 
@@ -25,6 +26,7 @@ local PAGE_SIZE = 36
 local function CaseDetails(props)
 	local case = CaseRegistry.get(props.caseId)
 	local page, setPage = React.useState(1)
+	local advanced = useSetting("advancedStats")
 
 	React.useLayoutEffect(function()
 		setPage(1)
@@ -62,7 +64,7 @@ local function CaseDetails(props)
 	if case.specialCount > 0 then
 		tiles.Special = e(SpecialTile, {
 			layoutOrder = 0,
-			subtitle = Format.percent(case.specialChance),
+			subtitle = if advanced then Format.odds(case.specialChance) else Format.percent(case.specialChance),
 		})
 	end
 	for index = first, last do
@@ -72,7 +74,7 @@ local function CaseDetails(props)
 			layoutOrder = index,
 			assetId = item.assetId,
 			subtitle = Format.cash(item.value),
-			tagText = Format.percent(item.chance),
+			tagText = if advanced then Format.odds(item.chance) else Format.percent(item.chance),
 			tagColor = tier.color,
 		})
 	end

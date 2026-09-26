@@ -57,6 +57,7 @@ local function BottomNav(props)
 		{ id = "cases", text = "Cases" },
 		{ id = "inventory", text = "Inventory" },
 	}
+	table.insert(tabs, { id = "settings", text = "Settings" })
 	if isAdmin then
 		table.insert(tabs, { id = "admin", text = "Admin" })
 	end

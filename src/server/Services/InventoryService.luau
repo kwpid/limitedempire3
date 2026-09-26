@@ -35,6 +35,9 @@ function InventoryService:Sell(player: Player, uids: any): Types.Result<number>
 	if payout > 0 then
 		PlayerDataService:AddCash(player, payout)
 	end
+	if #removed > 0 then
+		PlayerDataService:AddStats(player, { sold = #removed, soldValue = payout })
+	end
 	return { ok = true, data = payout }
 end
 

@@ -58,6 +58,14 @@ function Format.float(f: number): string
 	return string.format("%.6f", f)
 end
 
+-- "1 in 1,234" for a chance between 0 and 1
+function Format.odds(chance: number): string
+	if chance <= 0 then
+		return "-"
+	end
+	return "1 in " .. Format.commas(math.max(1, math.floor(1 / chance + 0.5)))
+end
+
 function Format.serial(n: number): string
 	return "#" .. Format.commas(n)
 end

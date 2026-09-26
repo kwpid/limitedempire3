@@ -14,6 +14,9 @@
 --   PlayerDataService:SetEquipped(player, uids)
 --   PlayerDataService:UpdateItems(player, uids, mutate) -> { ItemInstance } calls mutate(item) on each owned item,
 --   the ones it returns true for are replicated as changed (used for stat tracker counts)
+--   PlayerDataService:SetSetting(player, id, value) (value must already be cleaned with Settings.clean)
+--   PlayerDataService:GetSettings(player) -> resolved settings (defaults filled in)
+--   PlayerDataService:AddStats(player, { [id]: amount }), PlayerDataService:SetStats(player, { [id]: value })
 --   PlayerDataService:Reset(player) (wipes the player back to the template, used by the admin panel)
 --   PlayerDataService.Loaded (signal: player), PlayerDataService.EquippedChanged (signal: player, uids),
 --   PlayerDataService.InventoryChanged (signal: player) fires after items are added, removed or wiped
@@ -27,11 +30,18 @@ local Shared = ReplicatedStorage.Shared
 local Net = require(Shared.Net)
 local Signal = require(Shared.Util.Signal)
 local Types = require(Shared.Types)
+local Settings = require(Shared.Settings)
 local ProfileStore = require(ServerStorage.ServerPackages.ProfileStore)
 local DataConfig = require(ServerScriptService.Server.Modules.DataConfig)
 
 type ItemInstance = Types.ItemInstance
-type SavedData = { cash: number, inventory: { [string]: ItemInstance }, equipped: { string } }
+type SavedData = {
+	cash: number,
+	inventory: { [string]: ItemInstance },
+	equipped: { string },
+	settings: { [string]: any },
+	stats: { [string]: number },
+}
 
 local PlayerDataService = {
 	InventoryChanged = Signal.new(),
@@ -57,6 +67,8 @@ local function snapshot(player: Player): Types.PlayerState?
 		cash = data.cash,
 		inventory = data.inventory,
 		equipped = data.equipped,
+		settings = data.settings,
+		stats = data.stats,
 		version = versions[player] or 0,
 	}
 end
@@ -190,6 +202,44 @@ function PlayerDataService:SetEquipped(player: Player, uids: { string })
 	self.EquippedChanged:Fire(player, data.equipped)
 end
 
+function PlayerDataService:SetSetting(player: Player, id: string, value: any)
+	local data = dataOf(player)
+	if not data then
+		return
+	end
+	local nextSettings = table.clone(data.settings)
+	nextSettings[id] = value
+	data.settings = nextSettings
+	push(player, "settings", data.settings)
+end
+
+function PlayerDataService:GetSettings(player: Player): { [string]: any }
+	local data = dataOf(player)
+	return Settings.resolve(data and data.settings)
+end
+
+function PlayerDataService:AddStats(player: Player, amounts: { [string]: number })
+	local data = dataOf(player)
+	if not data then
+		return
+	end
+	for id, amount in amounts do
+		data.stats[id] = (data.stats[id] or 0) + amount
+	end
+	push(player, "stats", data.stats)
+end
+
+function PlayerDataService:SetStats(player: Player, values: { [string]: number })
+	local data = dataOf(player)
+	if not data then
+		return
+	end
+	for id, value in values do
+		data.stats[id] = value
+	end
+	push(player, "stats", data.stats)
+end
+
 function PlayerDataService:Reset(player: Player)
 	local data = dataOf(player)
 	if not data then
@@ -203,7 +253,13 @@ function PlayerDataService:Reset(player: Player)
 	for key, value in fresh do
 		data[key] = value
 	end
-	push(player, "replace", { cash = data.cash, inventory = data.inventory, equipped = data.equipped })
+	push(player, "replace", {
+		cash = data.cash,
+		inventory = data.inventory,
+		equipped = data.equipped,
+		settings = data.settings,
+		stats = data.stats,
+	})
 	self.InventoryChanged:Fire(player)
 	if hadEquipped then
 		self.EquippedChanged:Fire(player, data.equipped)
