@@ -6,19 +6,26 @@
 --
 -- api: ItemModelService:Get(assetId) -> Model? (yields, cached), ItemModelService:Prepare(assetId) (non yielding),
 -- ItemModelService.meshKey(part) -> string? (numeric mesh id of a handle, used to match worn accessories to items),
--- ItemModelService:GetAccessory(assetId) -> Accessory? (a fresh clone of the real accessory, used for custom items)
+-- ItemModelService:GetCustom(assetId) -> Accessory | Tool | nil (a fresh clone of a custom item's real object, yields)
+--
+-- custom items (ItemRegistry.isCustom) come from ServerStorage.CustomItemModels first: put the item's Accessory or
+-- Tool there in Studio, named by its asset id (a Model or Folder with that name holding one works too). that
+-- always works. otherwise InsertService loads it, which Roblox only allows for assets owned by the game's owner
+-- (the same user, or the group for group games). previews of custom items keep every part, not just the Handle.
 -- built models carry "MeshKey" and "AccessoryName" attributes.
 -- clients ask through Net.functions.RequestItemModel:InvokeServer(assetId) -> boolean
 
 local InsertService = game:GetService("InsertService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 
 local Shared = ReplicatedStorage.Shared
 local ItemRegistry = require(Shared.Items.ItemRegistry)
 local Net = require(Shared.Net)
 
 local FOLDER_NAME = "ItemModels"
+local CUSTOM_FOLDER_NAME = "CustomItemModels"
 local REQUEST_WINDOW = 30
 local REQUEST_LIMIT = 40
 local RETRY_AFTER = 60
@@ -121,7 +128,93 @@ function ItemModelService.meshKey(part: Instance?): string?
 	return meshId:match("(%d+)%D*$")
 end
 
+local customTemplates: { [number]: Instance | false } = {}
+
+local function pickWearable(root: Instance): Instance?
+	if root:IsA("Accessory") or root:IsA("Tool") then
+		return root
+	end
+	return root:FindFirstChildWhichIsA("Accessory", true) or root:FindFirstChildWhichIsA("Tool", true)
+end
+
+function ItemModelService:GetCustom(assetId: number): Instance?
+	local template = customTemplates[assetId]
+	if template == nil then
+		template = false
+		local stored = ServerStorage:FindFirstChild(CUSTOM_FOLDER_NAME)
+		stored = stored and stored:FindFirstChild(tostring(assetId))
+		local wearable = stored and pickWearable(stored)
+		if wearable then
+			template = wearable:Clone()
+		else
+			local ok, loaded = pcall(InsertService.LoadAsset, InsertService, assetId)
+			wearable = ok and loaded and pickWearable(loaded)
+			if wearable then
+				wearable.Parent = nil
+				template = wearable
+			else
+				warn(
+					`[ItemModelService] custom item {assetId} could not be loaded: {if ok
+						then "the asset has no Accessory or Tool in it"
+						else loaded}. put its Accessory or Tool in ServerStorage.{CUSTOM_FOLDER_NAME} named "{assetId}", or make sure the game owner owns the asset`
+				)
+			end
+			if ok and loaded then
+				loaded:Destroy()
+			end
+		end
+		customTemplates[assetId] = template
+	end
+	return if template then template:Clone() else nil
+end
+
+-- every part of a custom accessory or tool, anchored in place around the handle
+local function buildCustom(assetId: number): Model?
+	local source = ItemModelService:GetCustom(assetId)
+	if not source then
+		return nil
+	end
+	local handle = source:FindFirstChild("Handle")
+	if not (handle and handle:IsA("BasePart")) then
+		handle = source:FindFirstChildWhichIsA("BasePart", true)
+	end
+	if not handle then
+		source:Destroy()
+		return nil
+	end
+
+	local origin = (handle :: BasePart).CFrame
+	local model = Instance.new("Model")
+	model.Name = tostring(assetId)
+	for _, part in source:GetDescendants() do
+		if not part:IsA("BasePart") then
+			continue
+		end
+		local copy = part:Clone()
+		for _, child in copy:GetChildren() do
+			if child:IsA("BasePart") then
+				child:Destroy()
+			end
+		end
+		strip(copy)
+		prepPart(copy)
+		copy.CFrame = origin:ToObjectSpace(part.CFrame)
+		copy.Name = if part == handle then "Handle" else part.Name
+		copy.Parent = model
+		if part == handle then
+			model.PrimaryPart = copy
+			model:SetAttribute("MeshKey", ItemModelService.meshKey(copy) or "")
+		end
+	end
+	model:SetAttribute("AccessoryName", source.Name)
+	source:Destroy()
+	return model
+end
+
 local function build(assetId: number): Model?
+	if ItemRegistry.isCustom(assetId) then
+		return buildCustom(assetId)
+	end
 	local isFace = ItemRegistry.isFace(assetId)
 	local source, container = loadSource(assetId, isFace)
 	if not source then
@@ -185,31 +278,6 @@ function ItemModelService:Get(assetId: number): Model?
 		task.spawn(thread)
 	end
 	return if ok then model else nil
-end
-
--- full Accessory for custom items (AvatarService wears these directly, the catalog based HumanoidDescription can't
--- load off sale uploads). loaded once with InsertService and kept in memory, callers get a clone. yields.
-local accessoryTemplates: { [number]: Accessory | false } = {}
-
-function ItemModelService:GetAccessory(assetId: number): Accessory?
-	local template = accessoryTemplates[assetId]
-	if template == nil then
-		local ok, loaded = pcall(InsertService.LoadAsset, InsertService, assetId)
-		local accessory = ok and loaded and loaded:FindFirstChildWhichIsA("Accessory", true)
-		if accessory then
-			accessory.Parent = nil
-			loaded:Destroy()
-			template = accessory :: Accessory
-		else
-			if ok and loaded then
-				loaded:Destroy()
-			end
-			warn(`[ItemModelService] could not load accessory {assetId}: {if ok then "no accessory in asset" else loaded}`)
-			template = false
-		end
-		accessoryTemplates[assetId] = template
-	end
-	return if template then template:Clone() else nil
 end
 
 function ItemModelService:Prepare(assetId: number)
