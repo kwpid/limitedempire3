@@ -22,6 +22,7 @@ local Text = require(script.Parent.Parent.Parent.Components.Text)
 local Button = require(script.Parent.Parent.Parent.Components.Button)
 local Grid = require(script.Parent.Parent.Parent.Components.Grid)
 local SpecialTile = require(script.Parent.Parent.Parent.Components.SpecialTile)
+local CaseIcon = require(script.Parent.Parent.Parent.Components.CaseIcon)
 local TraitText = require(script.Parent.Parent.Parent.Components.TraitText)
 local TrackerBadge = require(script.Parent.Parent.Parent.Components.TrackerBadge)
 local Battles = require(script.Parent.Parent.Parent.Parent.Controllers.Battles)
@@ -73,13 +74,15 @@ local function CaseIcons(props)
 	}
 	for index, caseId in props.cases do
 		local case = CaseRegistry.get(caseId)
-		children["Case" .. index] = e("ImageLabel", {
+		children["Case" .. index] = e("Frame", {
 			LayoutOrder = index,
 			Size = UDim2.fromOffset(props.size or 30, props.size or 30),
 			BackgroundColor3 = Theme.colors.panel,
 			BorderSizePixel = 0,
-			Image = if case then ItemRegistry.thumbnail(case.iconAssetId, 150) else "",
 		}, {
+			Icon = if case
+				then e(CaseIcon, { case = case, size = UDim2.fromScale(1, 1), emblem = (props.size or 30) >= 40 })
+				else nil,
 			Corner = e("UICorner", { CornerRadius = Theme.radius }),
 			Stroke = e("UIStroke", {
 				Color = if case then case.color else Theme.colors.stroke,
@@ -200,12 +203,11 @@ local function Create(props)
 		}, {
 			Corner = e("UICorner", { CornerRadius = Theme.radius }),
 			Stroke = e("UIStroke", { Color = case.color, Transparency = 0.5 }),
-			Icon = e("ImageLabel", {
-				AnchorPoint = Vector2.new(0.5, 0),
-				Position = UDim2.new(0.5, 0, 0, 6),
-				Size = UDim2.fromOffset(56, 56),
-				BackgroundTransparency = 1,
-				Image = ItemRegistry.thumbnail(case.iconAssetId, 150),
+			Icon = e(CaseIcon, {
+				case = case,
+				anchorPoint = Vector2.new(0.5, 0),
+				position = UDim2.new(0.5, 0, 0, 6),
+				size = UDim2.fromOffset(56, 56),
 			}),
 			Name = e(Text, {
 				Position = UDim2.new(0, 4, 1, -36),

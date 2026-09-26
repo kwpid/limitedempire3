@@ -10,12 +10,14 @@
 -- fields: curve (odds are value^-curve inside each group, lower = pricier items drop more),
 -- specialChance (combined odds of hitting the hidden special pool, 0.00015 = 1 in 6,667),
 -- specialMinValue (base value at which an item joins the hidden special pool, 20M = the Divine tier),
--- cases (id, name, order, color, series = { series id }, guests = { series theme id }).
+-- cases (id, name, order, color, series = { series id }, guests = { series theme id }, icon = image asset id?).
 -- caseSeries groups cases into the sections of the cases page (id, name, description, color, cases = { case id }),
 -- in display order. every case must be in exactly one case series.
 -- season cases: set season = n on a case and it can only be opened during that season (Shared/Progress/Seasons,
 -- which also lists each season's case). specials = { assetId } puts items (custom ones too) in its hidden special
 -- pool no matter their value: that is where a season's custom top item goes.
+-- icons: every case shows caseImage (an image asset id, drawn light so it tints well) tinted with the case color,
+-- with its best visible item on the front. set icon = imageAssetId on a case to give it its own art instead.
 
 return {
 	curve = 0.9,
@@ -23,6 +25,7 @@ return {
 	specialMinValue = 20_000_000,
 	guestMinValue = 30_000,
 	guestCount = 6,
+	caseImage = 104308375844024,
 	caseSeries = {
 		{ id = "season", name = "Season Case", color = Color3.fromRGB(255, 196, 46),
 			description = "Only open while its season lasts. Its top prize is a custom item you can't get anywhere else.",

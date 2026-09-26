@@ -11,6 +11,7 @@ local Text = require(script.Parent.Parent.Components.Text)
 local Button = require(script.Parent.Parent.Components.Button)
 local Grid = require(script.Parent.Parent.Components.Grid)
 local ItemTile = require(script.Parent.Parent.Components.ItemTile)
+local CaseIcon = require(script.Parent.Parent.Components.CaseIcon)
 local SpecialTile = require(script.Parent.Parent.Components.SpecialTile)
 local Preloader = require(script.Parent.Parent.Parent.Controllers.Preloader)
 local useSetting = require(script.Parent.Parent.Hooks.useSetting)
@@ -140,11 +141,10 @@ local function CaseDetails(props)
 		}, {
 			Corner = e("UICorner", { CornerRadius = Theme.radius }),
 			Stroke = e("UIStroke", { Color = Theme.colors.stroke }),
-			Icon = e("ImageLabel", {
-				Position = UDim2.fromOffset(10, 6),
-				Size = UDim2.fromOffset(60, 60),
-				BackgroundTransparency = 1,
-				Image = ItemRegistry.thumbnail(case.iconAssetId, 150),
+			Icon = e(CaseIcon, {
+				case = case,
+				position = UDim2.fromOffset(10, 6),
+				size = UDim2.fromOffset(60, 60),
 			}),
 			Name = e(Text, {
 				Position = UDim2.fromOffset(82, 12),
