@@ -34,9 +34,10 @@ local WHERE_TEXT = {
 	elsewhere = "in another server (view only)",
 }
 
+-- react does not pass a prop named "ref" to function components, so the TextBox ref comes in as inputRef
 local function Box(props)
 	return e("TextBox", {
-		ref = props.ref,
+		ref = props.inputRef,
 		LayoutOrder = props.layoutOrder,
 		Position = props.position,
 		Size = props.size or UDim2.fromOffset(120, 28),
@@ -209,7 +210,7 @@ local function ItemEditor(props)
 				Box,
 				{
 					layoutOrder = 1,
-					ref = floatRef,
+					inputRef = floatRef,
 					size = UDim2.fromOffset(106, 28),
 					placeholder = "float",
 					text = tostring(item.float),
@@ -219,7 +220,7 @@ local function ItemEditor(props)
 				Box,
 				{
 					layoutOrder = 2,
-					ref = serialRef,
+					inputRef = serialRef,
 					size = UDim2.fromOffset(106, 28),
 					placeholder = "serial",
 					text = tostring(item.serial),
@@ -227,7 +228,7 @@ local function ItemEditor(props)
 			),
 			Tracker = e(Box, {
 				layoutOrder = 3,
-				ref = trackerRef,
+				inputRef = trackerRef,
 				size = UDim2.fromOffset(106, 28),
 				placeholder = "tracker count",
 				text = if item.tracker then tostring(item.tracker.opens) else "",
@@ -305,11 +306,11 @@ local function SpawnSection(props)
 		Ids = wrapRow({
 			Asset = e(
 				Box,
-				{ layoutOrder = 1, ref = assetRef, size = UDim2.fromOffset(200, 28), placeholder = "asset id" }
+				{ layoutOrder = 1, inputRef = assetRef, size = UDim2.fromOffset(200, 28), placeholder = "asset id" }
 			),
 			Count = e(
 				Box,
-				{ layoutOrder = 2, ref = countRef, size = UDim2.fromOffset(70, 28), placeholder = "count 1" }
+				{ layoutOrder = 2, inputRef = countRef, size = UDim2.fromOffset(70, 28), placeholder = "count 1" }
 			),
 		}, 28, 1),
 		CustomLabel = if order > 0
@@ -321,11 +322,11 @@ local function SpawnSection(props)
 		Fields = wrapRow({
 			Float = e(
 				Box,
-				{ layoutOrder = 1, ref = floatRef, size = UDim2.fromOffset(110, 28), placeholder = "float (random)" }
+				{ layoutOrder = 1, inputRef = floatRef, size = UDim2.fromOffset(110, 28), placeholder = "float (random)" }
 			),
 			Serial = e(
 				Box,
-				{ layoutOrder = 2, ref = serialRef, size = UDim2.fromOffset(110, 28), placeholder = "serial (next)" }
+				{ layoutOrder = 2, inputRef = serialRef, size = UDim2.fromOffset(110, 28), placeholder = "serial (next)" }
 			),
 			Tracker = e(Chip, {
 				layoutOrder = 3,
@@ -521,7 +522,7 @@ local function DataEditorPage()
 			Size = UDim2.new(1, 0, 0, HEADER),
 			BackgroundTransparency = 1,
 		}, {
-			UserId = e(Box, { ref = userRef, size = UDim2.fromOffset(170, HEADER), placeholder = "user id" }),
+			UserId = e(Box, { inputRef = userRef, size = UDim2.fromOffset(170, HEADER), placeholder = "user id" }),
 			Load = e(Button, {
 				position = UDim2.fromOffset(176, 0),
 				size = UDim2.fromOffset(80, HEADER),
@@ -564,7 +565,7 @@ local function DataEditorPage()
 				TextColor3 = if readOnly then Theme.colors.bad else Theme.colors.textDim,
 			}),
 			Cash = e(Box, {
-				ref = cashRef,
+				inputRef = cashRef,
 				position = UDim2.new(1, -254, 0, 0),
 				size = UDim2.fromOffset(170, HEADER),
 				placeholder = if snapshot then `cash {Format.commas(snapshot.cash)}` else "cash",
