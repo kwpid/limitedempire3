@@ -10,8 +10,10 @@ local Boosts = require(Shared.Economy.Boosts)
 local Format = require(Shared.Util.Format)
 local Net = require(Shared.Net)
 local Types = require(Shared.Types)
+local NameStyles = require(Shared.Visuals.NameStyles)
 local Codes = require(ServerScriptService.Server.Modules.Codes)
 local BoostService = require(script.Parent.BoostService)
+local CosmeticService = require(script.Parent.CosmeticService)
 local PlayerDataService = require(script.Parent.PlayerDataService)
 
 local CodeService = {}
@@ -50,7 +52,8 @@ local function load()
 				and reward.multiplier > 1
 				and type(reward.minutes) == "number"
 				and reward.minutes > 0
-			if not (isCash or isBoost) then
+			local isStyle = NameStyles.exists(reward.nameStyle) and reward.nameStyle ~= "default"
+			if not (isCash or isBoost or isStyle) then
 				valid = false
 			end
 		end
@@ -73,6 +76,8 @@ end
 local function describe(reward): string
 	if reward.cash then
 		return `+{Format.cash(reward.cash)}`
+	elseif reward.nameStyle then
+		return `the {NameStyles.get(reward.nameStyle).name} name style`
 	end
 	return `{reward.multiplier}x {Boosts.KINDS[reward.boost].name} for {reward.minutes} min`
 end
@@ -107,6 +112,8 @@ function CodeService:Redeem(player: Player, text: any): Types.Result<any>
 	for _, reward in entry.rewards do
 		if reward.cash then
 			PlayerDataService:AddCash(player, reward.cash)
+		elseif reward.nameStyle then
+			CosmeticService:Unlock(player, "nameStyle", reward.nameStyle)
 		else
 			BoostService:Add(player, reward.boost, reward.multiplier, reward.minutes)
 		end

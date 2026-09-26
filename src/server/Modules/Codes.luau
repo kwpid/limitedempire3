@@ -8,6 +8,8 @@
 --              { boost = "cash", multiplier = 2, minutes = 30 }   cash multiplier for 30 minutes
 --              { boost = "xp", multiplier = 2, minutes = 60 }     xp multiplier
 --              { boost = "sp", multiplier = 1.5, minutes = 30 }   Season Points multiplier
+--              { nameStyle = "glitch" }                           unlocks a name style (Shared/Visuals/NameStyles,
+--                                                                 the exclusives there have no level)
 --   expires  optional "YYYY-MM-DD": the last day (UTC) the code works
 --   active   optional, false turns a code off without deleting it
 

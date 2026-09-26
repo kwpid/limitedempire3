@@ -1,6 +1,7 @@
 -- adds each speaker's title and name style to chat messages (TextChatService only, the legacy chat is ignored).
 -- the title goes in front of the name in its color, glow titles get a rich text stroke in their glow color (the
--- closest chat gets to a glow), and the name is tinted with the name style's chatColor. chat can't animate.
+-- closest chat gets to a glow), and the name is tinted with the name style's chatColor, in its font and upper or
+-- lower case. chat can't animate or outline.
 -- api: ChatTags.start()
 
 local Players = game:GetService("Players")
@@ -52,7 +53,12 @@ function ChatTags.start()
 		local style = NameStyles.get(player:GetAttribute("NameStyle"))
 		local name = message.PrefixText
 		if style.id ~= "default" then
-			name = `<font color="#{style.chatColor:ToHex()}">{name}</font>`
+			-- spaced names would space out the colon too, so chat only takes upper and lower case
+			if style.case == "upper" or style.case == "lower" then
+				name = NameStyles.transform(style, name)
+			end
+			local face = if style.font then ` face="{style.font}"` else ""
+			name = `<font color="#{style.chatColor:ToHex()}"{face}>{name}</font>`
 		end
 		properties.PrefixText = titleTag(player:GetAttribute("Title")) .. name
 		return properties
