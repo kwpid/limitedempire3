@@ -268,7 +268,7 @@ local function SettingsPage()
 	for index, name in Settings.sections do
 		local count = 0
 		for _, def in Settings.list do
-			if def.section == name then
+			if def.section == name and not def.hidden then
 				count += 1
 				if name == section then
 					table.insert(defs, def)

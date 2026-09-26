@@ -524,6 +524,7 @@ local function App(props)
 			}, {
 				Page = e(CasesPage, {
 					cash = state.cash,
+					opened = state.stats and state.stats.opened or 0,
 					onSelect = setSelectedCaseId,
 				}),
 			}),
