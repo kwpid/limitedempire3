@@ -1,4 +1,5 @@
--- games played straight with cash: Coinflip and Dice. the server rolls (GameService), this holds the rules so the ui
+-- games played straight with cash: Coinflip and Dice (Crash and Mines have their own rules modules but share the
+-- bet limits and house edge here). the server rolls (GameService), this holds the rules so the ui
 -- shows the same numbers. both keep a HOUSE_EDGE: a fair bet would pay 1 / chance, these pay (1 - edge) / chance.
 --   coinflip: pick heads or tails, a win pays COINFLIP_MULTIPLIER x the bet
 --   dice: pick a win chance (whole percent, MIN_CHANCE to MAX_CHANCE), a roll from 0 to 100 under it wins and pays

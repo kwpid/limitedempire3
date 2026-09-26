@@ -53,6 +53,11 @@ function Actions.cashGame(gameId: string, bet: number, option: any): Types.Resul
 	return invoke(Net.functions.CashGame, gameId, bet, option)
 end
 
+-- Crash and Mines rounds (CashRoundService): gameId "crash" | "mines", action "start" | "cashout" | "reveal" | "state"
+function Actions.cashRound(gameId: string, action: string, payload: any?): Types.Result<any>
+	return invoke(Net.functions.CashRound, gameId, action, payload)
+end
+
 function Actions.redeemCode(code: string): Types.Result<any>
 	return invoke(Net.functions.RedeemCode, code)
 end
