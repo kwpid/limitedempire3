@@ -521,7 +521,7 @@ local function AdminPage(props)
 			Current = e(Text, {
 				Position = UDim2.fromOffset(0, 26),
 				Size = UDim2.new(1, 0, 0, 18),
-				Text = `Current luck: {formatLuck(luck)}. Boosts expensive drops and trait chances.`,
+				Text = `Current luck: {formatLuck(luck)}. Boosts expensive drops, trait chances and float.`,
 				TextSize = 13,
 				TextColor3 = Theme.colors.textDim,
 			}),

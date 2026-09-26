@@ -1,4 +1,4 @@
--- per player luck multiplier used when rolling cases and traits. default is 1 (normal odds).
+-- per player luck multiplier used when rolling cases, traits and floats. default is 1 (normal odds).
 -- stored as the "Luck" attribute on the player so the client can show it, only the server ever sets it.
 -- not saved yet, resets to 1 on rejoin.
 -- api: LuckService:Get(player) -> number, LuckService:Set(player, luck) (minimum 1, no maximum)

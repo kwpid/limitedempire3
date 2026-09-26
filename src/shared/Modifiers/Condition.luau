@@ -1,5 +1,5 @@
 -- item condition, driven by a float from 0 to 1 (lower is better). each band has a value multiplier and an avatar tint.
--- api: Condition.list, Condition.fromFloat(f) -> band, Condition.rollFloat(rng) -> number,
+-- api: Condition.list, Condition.fromFloat(f) -> band, Condition.rollFloat(rng, luck?) -> number,
 -- Condition.expectedMultiplier() -> average multiplier across all floats (used for case pricing)
 
 export type Band = {
@@ -32,8 +32,18 @@ function Condition.fromFloat(f: number): Band
 	return LIST[#LIST]
 end
 
-function Condition.rollFloat(rng: Random): number
-	return math.floor(rng:NextNumber() * 1e6) / 1e6
+-- luck makes low (better) floats more likely: the float is the best of luck ^ LUCK_POWER rolls, worked out in one
+-- draw (the lowest of n uniform rolls is 1 - (1 - u) ^ (1 / n)). luck 100 is the best of 10 rolls, so Mint goes
+-- from 3% to about 26%. case prices assume normal luck.
+local LUCK_POWER = 0.5
+
+function Condition.rollFloat(rng: Random, luck: number?): number
+	local u = rng:NextNumber()
+	if luck and luck > 1 then
+		local rolls = math.min(luck, 1e300) ^ LUCK_POWER
+		u = 1 - (1 - u) ^ (1 / rolls)
+	end
+	return math.floor(u * 1e6) / 1e6
 end
 
 local expected = 0

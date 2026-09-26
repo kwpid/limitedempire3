@@ -27,6 +27,10 @@ function Actions.setEquipped(uids: { string }): Types.Result<nil>
 	return invoke(Net.functions.SetEquipped, uids)
 end
 
+function Actions.setCosmetic(kind: string, id: string): Types.Result<nil>
+	return invoke(Net.functions.SetCosmetic, kind, id)
+end
+
 function Actions.admin(action: string, payload: any): Types.Result<any>
 	return invoke(Net.functions.AdminAction, action, payload)
 end

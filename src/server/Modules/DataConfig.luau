@@ -24,6 +24,10 @@ function DataConfig.template()
 		inventory = {},
 		equipped = {},
 		settings = {},
+		cosmetics = {
+			title = { equipped = "none", unlocked = {} },
+			nameStyle = { equipped = "default", unlocked = {} },
+		},
 		stats = PlayerStats.defaults(),
 	}
 end

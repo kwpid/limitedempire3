@@ -29,7 +29,7 @@ local Condition = require(Shared.Modifiers.Condition)
 local Tiers = require(Shared.Items.Tiers)
 local Traits = require(Shared.Modifiers.Traits)
 local LuckService = require(script.Parent.LuckService)
-local NameStyleService = require(script.Parent.NameStyleService)
+local CosmeticService = require(script.Parent.CosmeticService)
 local SerialService = require(script.Parent.SerialService)
 local PlayerDataService = require(script.Parent.PlayerDataService)
 
@@ -138,10 +138,7 @@ local ACTIONS: { [string]: (Player, any) -> Types.Result<any> } = {
 
 	setNameStyle = function(player, payload)
 		local styleId = type(payload) == "table" and payload.style
-		if not NameStyleService:Set(player, styleId) then
-			return { ok = false, err = "Unknown name style" }
-		end
-		return { ok = true }
+		return CosmeticService:Equip(player, "nameStyle", styleId)
 	end,
 
 	wipeData = function(player)

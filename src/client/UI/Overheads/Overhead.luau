@@ -8,6 +8,7 @@ local Theme = require(script.Parent.Parent.Theme)
 local Text = require(script.Parent.Parent.Components.Text)
 local NameLabel = require(script.Parent.Parent.Components.NameLabel)
 local TrackerBadge = require(script.Parent.Parent.Components.TrackerBadge)
+local TitleText = require(script.Parent.Parent.Components.TitleText)
 local usePlayerAttribute = require(script.Parent.Parent.Hooks.usePlayerAttribute)
 local usePlayerValue = require(script.Parent.Parent.Hooks.usePlayerValue)
 
@@ -41,6 +42,7 @@ local function Overhead(props)
 	local styleId = usePlayerAttribute("NameStyle", player)
 	local value = usePlayerValue(player)
 	local trackersRaw = usePlayerAttribute("StatTrackers", player)
+	local titleId = usePlayerAttribute("Title", player)
 	local trackers = React.useMemo(function()
 		return parseTrackers(trackersRaw)
 	end, { trackersRaw })
@@ -116,14 +118,19 @@ local function Overhead(props)
 				SortOrder = Enum.SortOrder.LayoutOrder,
 			}),
 			Name = e(NameLabel, {
-				layoutOrder = 1,
+				layoutOrder = 2,
 				size = UDim2.new(1, 0, 0, 24),
 				text = player.DisplayName,
 				styleId = styleId,
 				textSize = 22,
 			}),
+			Title = e(TitleText, {
+				layoutOrder = 1,
+				titleId = titleId,
+				textSize = 14,
+			}),
 			Username = e(Text, {
-				LayoutOrder = 2,
+				LayoutOrder = 3,
 				Size = UDim2.new(1, 0, 0, 14),
 				Text = "@" .. player.Name,
 				TextSize = 13,
@@ -132,7 +139,7 @@ local function Overhead(props)
 				TextXAlignment = Enum.TextXAlignment.Center,
 			}),
 			Value = e("Frame", {
-				LayoutOrder = 3,
+				LayoutOrder = 4,
 				Size = UDim2.fromOffset(0, 20),
 				AutomaticSize = Enum.AutomaticSize.X,
 				BackgroundColor3 = Theme.colors.topbar,

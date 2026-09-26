@@ -20,6 +20,8 @@ local CaseDetails = require(script.Parent.Pages.CaseDetails)
 local InventoryPage = require(script.Parent.Pages.InventoryPage)
 local AdminPage = require(script.Parent.Pages.AdminPage)
 local SettingsPage = require(script.Parent.Pages.SettingsPage)
+local CosmeticsPage = require(script.Parent.Pages.CosmeticsPage)
+local TabBar = require(script.Parent.Components.TabBar)
 local OpeningOverlay = require(script.Parent.Opening.OpeningOverlay)
 local InspectView = require(script.Parent.Inspect.InspectView)
 local usePlayerState = require(script.Parent.Hooks.usePlayerState)
@@ -32,6 +34,13 @@ local Sfx = require(script.Parent.Parent.Controllers.Sfx)
 local Perf = require(script.Parent.Parent.Controllers.Perf)
 
 local e = React.createElement
+
+local INVENTORY_TABS = {
+	{ id = "items", text = "Items" },
+	{ id = "titles", text = "Titles" },
+	{ id = "nameStyles", text = "Name Styles" },
+}
+local TAB_HEIGHT = 32
 
 local function playReveal(item)
 	local traits = Traits.of(item)
@@ -80,6 +89,7 @@ local function App(props)
 	local opening, setOpening = React.useState(nil)
 	local inspectUid, setInspectUid = React.useState(nil)
 	local busy, setBusy = React.useState(false)
+	local inventoryTab, setInventoryTab = React.useState("items")
 	local autoOpen, setAutoOpen = React.useState(false)
 	local autoRunning, setAutoRunning = React.useState(false)
 	local autoCount, setAutoCount = React.useState(0)
@@ -381,10 +391,30 @@ local function App(props)
 			subtitle = `{inventoryCount} items`,
 			onClose = close,
 		}, {
-			Page = e(InventoryPage, {
-				inventory = state.inventory,
-				equipped = state.equipped,
-				onInspect = setInspectUid,
+			Tabs = e(TabBar, {
+				size = UDim2.new(1, 0, 0, TAB_HEIGHT),
+				tabs = INVENTORY_TABS,
+				value = inventoryTab,
+				onChange = setInventoryTab,
+			}),
+			Content = e("Frame", {
+				Position = UDim2.fromOffset(0, TAB_HEIGHT + 10),
+				Size = UDim2.new(1, 0, 1, -(TAB_HEIGHT + 10)),
+				BackgroundTransparency = 1,
+			}, {
+				Items = e("Frame", {
+					Size = UDim2.fromScale(1, 1),
+					BackgroundTransparency = 1,
+					Visible = inventoryTab == "items",
+				}, {
+					Page = e(InventoryPage, {
+						inventory = state.inventory,
+						equipped = state.equipped,
+						onInspect = setInspectUid,
+					}),
+				}),
+				Titles = inventoryTab == "titles" and e(CosmeticsPage, { kind = "title" }),
+				NameStyles = inventoryTab == "nameStyles" and e(CosmeticsPage, { kind = "nameStyle" }),
 			}),
 		}),
 		SettingsWindow = e(Window, {

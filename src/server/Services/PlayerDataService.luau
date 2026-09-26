@@ -19,6 +19,9 @@
 --   PlayerDataService:SetSetting(player, id, value) (value must already be cleaned with Settings.clean)
 --   PlayerDataService:GetSettings(player) -> resolved settings (defaults filled in)
 --   PlayerDataService:AddStats(player, { [id]: amount }), PlayerDataService:SetStats(player, { [id]: value })
+--   PlayerDataService:GetCosmetics(player, kind) -> { equipped, unlocked } (titles and name styles, saved
+--   unlocks only, CosmeticService adds role grants), :SetEquippedCosmetic(player, kind, id),
+--   :UnlockCosmetic(player, kind, id)
 --   PlayerDataService:Reset(player) (wipes the player back to the template, used by the admin panel)
 --   PlayerDataService.Loaded (signal: player), PlayerDataService.EquippedChanged (signal: player, uids),
 --   PlayerDataService.InventoryChanged (signal: player) fires after items are added, removed or wiped
@@ -43,6 +46,7 @@ type SavedData = {
 	equipped: { string },
 	settings: { [string]: any },
 	stats: { [string]: number },
+	cosmetics: { [string]: { equipped: string?, unlocked: { string } } },
 }
 
 local PlayerDataService = {
@@ -256,6 +260,41 @@ function PlayerDataService:SetStats(player: Player, values: { [string]: number }
 		data.stats[id] = value
 	end
 	push(player, "stats", data.stats)
+end
+
+-- cosmetics are { [kind]: { equipped = id, unlocked = { id } } }, kinds and rules live in CosmeticService
+function PlayerDataService:GetCosmetics(player: Player, kind: string): { equipped: string?, unlocked: { string } }
+	local data = dataOf(player)
+	local entry = data and data.cosmetics and data.cosmetics[kind]
+	return entry or { equipped = nil, unlocked = {} }
+end
+
+local function cosmeticEntry(data: SavedData, kind: string)
+	data.cosmetics = data.cosmetics or {}
+	local entry = data.cosmetics[kind]
+	if not entry then
+		entry = { equipped = nil, unlocked = {} }
+		data.cosmetics[kind] = entry
+	end
+	return entry
+end
+
+function PlayerDataService:SetEquippedCosmetic(player: Player, kind: string, id: string)
+	local data = dataOf(player)
+	if data then
+		cosmeticEntry(data, kind).equipped = id
+	end
+end
+
+function PlayerDataService:UnlockCosmetic(player: Player, kind: string, id: string)
+	local data = dataOf(player)
+	if not data then
+		return
+	end
+	local entry = cosmeticEntry(data, kind)
+	if not table.find(entry.unlocked, id) then
+		table.insert(entry.unlocked, id)
+	end
 end
 
 function PlayerDataService:Reset(player: Player)

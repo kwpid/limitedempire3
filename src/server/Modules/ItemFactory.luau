@@ -41,7 +41,7 @@ end
 
 function ItemFactory.create(assetId: number, caseId: string?, luck: number?, owner: Player?, override: any?): Types.ItemInstance
 	local traits = if override and override.traits then Traits.of({ traits = override.traits }) else Traits.rollAll(rng, luck)
-	local float = override and override.condition and floatIn(override.condition) or Condition.rollFloat(rng)
+	local float = override and override.condition and floatIn(override.condition) or Condition.rollFloat(rng, luck)
 	local tracker = if override and override.tracker then { opens = 0 } else StatTracker.roll(rng)
 	return {
 		uid = HttpService:GenerateGUID(false),

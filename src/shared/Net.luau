@@ -18,6 +18,7 @@ local FUNCTIONS = {
 	"AdminAction",
 	"RequestItemModel",
 	"SetSetting",
+	"SetCosmetic",
 }
 
 local FOLDER_NAME = "Remotes"
