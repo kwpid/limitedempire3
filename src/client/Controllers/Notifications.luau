@@ -86,6 +86,18 @@ function Notifications.start()
 				`{payload.name} has started! You kept {Format.commas(payload.sp)} SP`,
 				PROGRESS_COLORS.rank
 			)
+		elseif kind == "seasonRewards" then
+			local place = if payload.placement then ` (#{payload.placement})` else ""
+			Notifications.push(
+				`{payload.season} ended: {payload.rank}{place}. +{Format.cash(payload.cash)}`,
+				PROGRESS_COLORS.rank
+			)
+			for _, titleId in payload.titles or {} do
+				local title = Titles.get(titleId)
+				if title then
+					Notifications.push(`Unlocked the {title.name} title`, PROGRESS_COLORS.unlock)
+				end
+			end
 		elseif kind == "decay" then
 			Notifications.push(`You lost {Format.commas(payload.lost)} SP to inactivity`, PROGRESS_COLORS.decay)
 		elseif kind == "login" then

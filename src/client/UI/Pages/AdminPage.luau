@@ -21,7 +21,7 @@ local QUICK_AMOUNTS = { 1_000, 10_000, 100_000, 1_000_000, 100_000_000 }
 local QUICK_LUCK = { 1, 2, 5, 10, 50, 100, 1000 }
 local CONFIRM_WINDOW = 3
 local OVERRIDE_COUNTS = { 1, 5, 25, -1 }
-local PAGE_HEIGHT = 870
+local PAGE_HEIGHT = 904
 local QUICK_XP = { 100, 1_000, 10_000, 100_000 }
 local QUICK_SP = { 100, 1_000, 10_000, -1_000 }
 local SP_MULTIPLIERS = { 0.5, 1, 1.5, 2, 3, 5 }
@@ -133,12 +133,20 @@ local function AdminPage(props)
 	local armed, setArmed = React.useState(nil)
 	local luck = usePlayerAttribute("Luck") or 1
 	local spMultiplier, setSpMultiplier = React.useState(ReplicatedStorage:GetAttribute("SPMultiplier") or 1)
+	local boardAllRanks, setBoardAllRanks = React.useState(ReplicatedStorage:GetAttribute("SPBoardAllRanks") == true)
 	React.useEffect(function()
-		local connection = ReplicatedStorage:GetAttributeChangedSignal("SPMultiplier"):Connect(function()
-			setSpMultiplier(ReplicatedStorage:GetAttribute("SPMultiplier") or 1)
-		end)
+		local connections = {
+			ReplicatedStorage:GetAttributeChangedSignal("SPMultiplier"):Connect(function()
+				setSpMultiplier(ReplicatedStorage:GetAttribute("SPMultiplier") or 1)
+			end),
+			ReplicatedStorage:GetAttributeChangedSignal("SPBoardAllRanks"):Connect(function()
+				setBoardAllRanks(ReplicatedStorage:GetAttribute("SPBoardAllRanks") == true)
+			end),
+		}
 		return function()
-			connection:Disconnect()
+			for _, connection in connections do
+				connection:Disconnect()
+			end
 		end
 	end, {})
 	local nameStyle = usePlayerAttribute("NameStyle")
@@ -417,6 +425,41 @@ local function AdminPage(props)
 			end,
 		})
 	end
+	local function setBoard(value: boolean)
+		if pending then
+			return
+		end
+		setPending(true)
+		task.spawn(function()
+			local result = Actions.admin("setBoardAllRanks", { value = value })
+			setPending(false)
+			if not result.ok then
+				Notifications.push(result.err or "Admin action failed", Theme.colors.bad)
+			end
+		end)
+	end
+	local boardChips = {
+		Legends = e(Chip, {
+			layoutOrder = 1,
+			text = "Legends only",
+			width = 120,
+			active = not boardAllRanks,
+			disabled = pending,
+			onClick = function()
+				setBoard(false)
+			end,
+		}),
+		All = e(Chip, {
+			layoutOrder = 2,
+			text = "All ranks (testing)",
+			width = 150,
+			active = boardAllRanks,
+			disabled = pending,
+			onClick = function()
+				setBoard(true)
+			end,
+		}),
+	}
 	multiplierChips.Reroll = e(Chip, {
 		layoutOrder = 100,
 		text = "Reroll my quests",
@@ -439,7 +482,7 @@ local function AdminPage(props)
 		Progress = e(Section, {
 			title = "Progress & seasons",
 			position = UDim2.fromOffset(0, 680),
-			size = UDim2.new(1, -10, 0, 176),
+			size = UDim2.new(1, -10, 0, 210),
 		}, {
 			Status = e(Text, {
 				Position = UDim2.fromOffset(0, 26),
@@ -484,6 +527,18 @@ local function AdminPage(props)
 				Size = UDim2.new(1, -100, 0, 28),
 				BackgroundTransparency = 1,
 			}, chipRow(progressRow(2, QUICK_SP, "addSp", "SP"))),
+			BoardLabel = e(Text, {
+				Position = UDim2.fromOffset(0, 156),
+				Size = UDim2.fromOffset(90, 28),
+				Text = "SP top 100",
+				TextSize = 12,
+				TextColor3 = Theme.colors.textFaint,
+			}),
+			Board = e("Frame", {
+				Position = UDim2.fromOffset(100, 156),
+				Size = UDim2.new(1, -100, 0, 28),
+				BackgroundTransparency = 1,
+			}, chipRow(boardChips)),
 		}),
 		NextUnbox = e(Section, {
 			title = "Next unbox (testing)",

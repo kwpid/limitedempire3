@@ -12,6 +12,8 @@ local Condition = require(Shared.Modifiers.Condition)
 local Format = require(Shared.Util.Format)
 local ItemRegistry = require(Shared.Items.ItemRegistry)
 local NameStyles = require(Shared.Visuals.NameStyles)
+local Career = require(Shared.Progress.Career)
+local Ranks = require(Shared.Progress.Ranks)
 local Titles = require(Shared.Titles)
 local Traits = require(Shared.Modifiers.Traits)
 local Valuation = require(Shared.Modifiers.Valuation)
@@ -302,7 +304,7 @@ local function SpawnSection(props)
 		})
 	end
 
-	return e(Section, { layoutOrder = 2, title = "Spawn item" }, {
+	return e(Section, { layoutOrder = 3, title = "Spawn item" }, {
 		Ids = wrapRow({
 			Asset = e(
 				Box,
@@ -364,6 +366,67 @@ local function SpawnSection(props)
 	})
 end
 
+-- season points and career xp. add takes negative amounts too
+local function ProgressSection(props)
+	local amountRef = React.useRef(nil)
+	local progress = props.snapshot.progress or { sp = 0, peak = 0, xp = 0 }
+	local rank = Ranks.fromSp(progress.sp)
+	local level = Career.fromXp(progress.xp)
+	local xpText = Format.commas(progress.xp)
+	local disabled = props.pending or props.readOnly
+
+	local function send(action: string, payload)
+		local amount = readNumber(amountRef)
+		if not amount then
+			Notifications.push("Enter an amount (negative removes)", Theme.colors.bad)
+			return
+		end
+		payload.amount = amount
+		props.run(action, payload)
+	end
+
+	return e(Section, { layoutOrder = 2, title = "Season & career" }, {
+		Info = e(Label, {
+			layoutOrder = 1,
+			text = `{rank.name}  ·  {Format.commas(progress.sp)} SP (peak {Format.commas(progress.peak)})  ·  Level {level} ({xpText} XP)`,
+			color = rank.color,
+		}),
+		Row = wrapRow({
+			Amount = e(
+				Box,
+				{ layoutOrder = 1, inputRef = amountRef, size = UDim2.fromOffset(110, 28), placeholder = "amount" }
+			),
+			AddSp = e(Chip, {
+				layoutOrder = 2,
+				text = "Add SP",
+				width = 64,
+				disabled = disabled,
+				onClick = function()
+					send("dataSp", {})
+				end,
+			}),
+			SetSp = e(Chip, {
+				layoutOrder = 3,
+				text = "Set SP",
+				width = 64,
+				disabled = disabled,
+				onClick = function()
+					send("dataSp", { set = true })
+				end,
+			}),
+			AddXp = e(Chip, {
+				layoutOrder = 4,
+				text = "Add XP",
+				width = 64,
+				disabled = disabled,
+				onClick = function()
+					send("dataXp", {})
+				end,
+			}),
+		}, 28, 2),
+	})
+end
+
 local function CosmeticsSection(props)
 	local snapshot = props.snapshot
 	local function unlockedSet(kind: string)
@@ -397,7 +460,7 @@ local function CosmeticsSection(props)
 		return children
 	end
 
-	return e(Section, { layoutOrder = 3, title = "Unlocked cosmetics" }, {
+	return e(Section, { layoutOrder = 4, title = "Unlocked cosmetics" }, {
 		Hint = e(Label, {
 			layoutOrder = 1,
 			text = "Green = unlocked. Role titles (everyone, admin, moderator) are not listed.",
@@ -501,6 +564,8 @@ local function DataEditorPage()
 			panel["Editor" .. selected.uid] =
 				e(ItemEditor, { item = selected, run = run, pending = pending, readOnly = readOnly })
 		end
+		panel.Progress =
+			e(ProgressSection, { snapshot = snapshot, run = run, pending = pending, readOnly = readOnly })
 		panel.Spawn = e(SpawnSection, { run = run, pending = pending, readOnly = readOnly })
 		panel.Cosmetics =
 			e(CosmeticsSection, { snapshot = snapshot, run = run, pending = pending, readOnly = readOnly })

@@ -5,13 +5,15 @@
 --
 -- api: DataEditor.snapshot(userId) -> Result<Snapshot>, DataEditor.addItems(userId, payload),
 -- DataEditor.editItem(userId, uid, payload), DataEditor.removeItems(userId, uids), DataEditor.setCash(userId, amount),
--- DataEditor.setCosmetic(userId, kind, id, unlocked) -> Result<Snapshot>
+-- DataEditor.setCosmetic(userId, kind, id, unlocked), DataEditor.changeSp(userId, amount, set?),
+-- DataEditor.addXp(userId, amount) -> Result<Snapshot>
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local Shared = ReplicatedStorage.Shared
+local Seasons = require(Shared.Progress.Seasons)
 local ItemRegistry = require(Shared.Items.ItemRegistry)
 local NameStyles = require(Shared.Visuals.NameStyles)
 local Titles = require(Shared.Titles)
@@ -131,6 +133,11 @@ function DataEditor.snapshot(userId: any): Types.Result<Snapshot>
 			equipped = data.equipped,
 			cosmetics = data.cosmetics,
 			stats = data.stats,
+			progress = {
+				sp = data.season and data.season.sp or 0,
+				peak = data.season and data.season.peak or 0,
+				xp = data.career and data.career.xp or 0,
+			},
 		},
 	}
 end
@@ -257,6 +264,32 @@ function DataEditor.setCash(userId: any, amount: any): Types.Result<Snapshot>
 	end
 	return editThen(id, function(data)
 		data.cash = math.floor(amount)
+	end)
+end
+
+-- adds (or with set, sets) Season Points. counts as activity so decay doesn't take it straight back
+function DataEditor.changeSp(userId: any, amount: any, set: boolean?): Types.Result<Snapshot>
+	local id = readUserId(userId)
+	if not id or type(amount) ~= "number" or amount ~= amount or math.abs(amount) > MAX_CASH then
+		return fail("Invalid amount")
+	end
+	return editThen(id, function(data)
+		data.season = data.season or { id = Seasons.current(), sp = 0, peak = 0, lastLoginDay = 0, history = {} }
+		local season = data.season
+		season.sp = math.max(0, math.floor(if set then amount else (season.sp or 0) + amount))
+		season.peak = math.max(season.peak or 0, season.sp)
+		season.lastActiveDay = Seasons.today()
+	end)
+end
+
+function DataEditor.addXp(userId: any, amount: any): Types.Result<Snapshot>
+	local id = readUserId(userId)
+	if not id or type(amount) ~= "number" or amount ~= amount or math.abs(amount) > MAX_CASH then
+		return fail("Invalid amount")
+	end
+	return editThen(id, function(data)
+		data.career = data.career or { xp = 0 }
+		data.career.xp = math.max(0, math.floor(data.career.xp + amount))
 	end)
 end
 

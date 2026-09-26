@@ -6,7 +6,12 @@
 -- (CosmeticService.MODERATOR_USER_IDS). titles without a grant are unlocked (career milestones and achievements
 -- in Shared/Progress, events later) and saved on the player. shown above the name on overheads and in chat.
 --
--- api: Titles.list (display order), Titles.get(id) -> Title?, Titles.NONE ("none")
+-- end of season titles are made below for every season up to the current one: "s{n}_{rank tier}" (S0 Gold, rank
+-- color, Champion white with a purple glow, Legend white with a gold glow) and "s{n}_{top reward id}" (S0 Top 10
+-- Legend, gold with a purple glow). ProgressService unlocks them when a season ends (Shared/Progress/Seasons).
+--
+-- api: Titles.list (display order), Titles.get(id) -> Title?, Titles.NONE ("none"),
+-- Titles.seasonRank(seasonId, tierId) -> id, Titles.seasonTop(seasonId, rewardId) -> id
 
 export type Title = {
 	id: string,
@@ -192,6 +197,51 @@ local LIST: { Title } = {
 	},
 }
 
+local Ranks = require(script.Parent.Progress.Ranks)
+local Seasons = require(script.Parent.Progress.Seasons)
+
+local GOLD = Color3.fromRGB(255, 200, 60)
+local PURPLE_GLOW = Color3.fromRGB(170, 80, 255)
+local GOLD_GLOW = Color3.fromRGB(255, 190, 40)
+
+local function seasonRankId(seasonId: number, tierId: string): string
+	return `s{seasonId}_{tierId}`
+end
+
+local function seasonTopId(seasonId: number, rewardId: string): string
+	return `s{seasonId}_{rewardId}`
+end
+
+-- newest season first, placements above ranks, best first. made up to the current season so a server that is
+-- running when a season ends already knows that season's titles
+for seasonId = (Seasons.current()), 0, -1 do
+	local seasonName = Seasons.name(seasonId)
+	for _, reward in Seasons.TOP_REWARDS do
+		table.insert(LIST, {
+			id = seasonTopId(seasonId, reward.id),
+			name = `S{seasonId} {reward.name}`,
+			color = GOLD,
+			glow = true,
+			glowColor = PURPLE_GLOW,
+			description = if reward.place == 1
+				then `Finished {seasonName} as the #1 player.`
+				else `Finished {seasonName} as a Legend in the top {reward.place}.`,
+		})
+	end
+	for index = #Ranks.tiers, 1, -1 do
+		local tier = Ranks.tiers[index]
+		local glowColor = if tier.id == "legend" then GOLD_GLOW elseif tier.id == "champion" then PURPLE_GLOW else nil
+		table.insert(LIST, {
+			id = seasonRankId(seasonId, tier.id),
+			name = `S{seasonId} {tier.name}`,
+			color = if glowColor then WHITE else tier.color,
+			glow = glowColor ~= nil,
+			glowColor = glowColor,
+			description = `Finished {seasonName} in {tier.name}.`,
+		})
+	end
+end
+
 local byId: { [string]: Title } = {}
 for _, title in LIST do
 	assert(not byId[title.id], `duplicate title id "{title.id}"`)
@@ -201,6 +251,8 @@ end
 local Titles = {}
 Titles.list = LIST
 Titles.NONE = "none"
+Titles.seasonRank = seasonRankId
+Titles.seasonTop = seasonTopId
 
 function Titles.get(id: string?): Title?
 	return id and byId[id] or nil

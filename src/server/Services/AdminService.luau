@@ -21,7 +21,9 @@
 --   "dataSetCash" { userId, amount }, "dataCosmetic" { userId, kind, id, unlocked }
 --   progress (ProgressService): "addXp" { amount }, "addSp" { amount } (negative removes, no multiplier),
 --   "resetQuests" (rerolls your daily and weekly quests), "setSpMultiplier" { amount } (server wide event
---   multiplier for Season Points, until the server shuts down; the default lives in Shared/Progress/Seasons)
+--   multiplier for Season Points, until the server shuts down; the default lives in Shared/Progress/Seasons),
+--   "setBoardAllRanks" { value } (SP top 100 lists every rank instead of Legends only, this server)
+--   "dataSp" { userId, amount, set? } (add, remove or set any player's SP), "dataXp" { userId, amount }
 -- to add an action, add a handler to ACTIONS below.
 
 local HttpService = game:GetService("HttpService")
@@ -42,6 +44,7 @@ local DataEditor = require(ServerScriptService.Server.Modules.DataEditor)
 local SerialService = require(script.Parent.SerialService)
 local PlayerDataService = require(script.Parent.PlayerDataService)
 local ProgressService = require(script.Parent.ProgressService)
+local LeaderboardService = require(script.Parent.LeaderboardService)
 
 local ADMIN_USER_IDS: { [number]: boolean } = {}
 
@@ -125,6 +128,14 @@ local function readAmount(payload: any): number?
 		return nil
 	end
 	return math.floor(amount)
+end
+
+-- an online player's level and rank attributes follow a data editor change to their progress
+local function syncProgress(userId: any)
+	local target = type(userId) == "number" and Players:GetPlayerByUserId(userId)
+	if target then
+		ProgressService:Sync(target)
+	end
 end
 
 local ACTIONS: { [string]: (Player, any) -> Types.Result<any> } = {
@@ -241,6 +252,33 @@ local ACTIONS: { [string]: (Player, any) -> Types.Result<any> } = {
 	resetQuests = function(player)
 		ProgressService:ResetQuests(player)
 		return { ok = true }
+	end,
+
+	setBoardAllRanks = function(_, payload)
+		local value = type(payload) == "table" and payload.value
+		if type(value) ~= "boolean" then
+			return { ok = false, err = "Invalid value" }
+		end
+		LeaderboardService:SetAllRanks(value)
+		return { ok = true }
+	end,
+
+	dataSp = function(_, payload)
+		if type(payload) ~= "table" then
+			return { ok = false, err = "Invalid request" }
+		end
+		local result = DataEditor.changeSp(payload.userId, payload.amount, payload.set == true)
+		syncProgress(payload.userId)
+		return result
+	end,
+
+	dataXp = function(_, payload)
+		if type(payload) ~= "table" then
+			return { ok = false, err = "Invalid request" }
+		end
+		local result = DataEditor.addXp(payload.userId, payload.amount)
+		syncProgress(payload.userId)
+		return result
 	end,
 
 	setSpMultiplier = function(_, payload)

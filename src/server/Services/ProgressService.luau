@@ -6,8 +6,11 @@
 -- new daily and weekly quests, the season change (soft reset) and inactivity decay, and sends the progress to the
 -- player ("progress" delta) plus toasts (Net.events.ProgressEvent). Level and Rank are mirrored to player
 -- attributes for overheads.
+-- when a season has ended, the player's first refresh after it pays the end of season rewards (rank title and cash,
+-- plus a top 100 title and cash for Legends, placement from LeaderboardService) and soft resets their SP.
 -- api: :CaseOpened(player, case, item), :Track(player, metric, amount, xp?), :AddXp(player, amount),
--- :AddSp(player, amount, useMultiplier?), :SetSpMultiplier(value), :GetSpMultiplier(), :ResetQuests(player)
+-- :AddSp(player, amount, useMultiplier?), :SetSpMultiplier(value), :GetSpMultiplier(), :ResetQuests(player),
+-- :Sync(player) (resend progress after the data editor changed it)
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -20,17 +23,23 @@ local Quests = require(Shared.Progress.Quests)
 local Ranks = require(Shared.Progress.Ranks)
 local SeasonPoints = require(Shared.Progress.SeasonPoints)
 local Seasons = require(Shared.Progress.Seasons)
+local Titles = require(Shared.Titles)
 local Traits = require(Shared.Modifiers.Traits)
 local Valuation = require(Shared.Modifiers.Valuation)
 local CosmeticService = require(script.Parent.CosmeticService)
+local LeaderboardService = require(script.Parent.LeaderboardService)
 local PlayerDataService = require(script.Parent.PlayerDataService)
 
 local PREMIUM_CASE_PRICE = 15_000
 local CHECK_INTERVAL = 60
+-- refreshes in a row the season end waits for the leaderboard (top 100 placement) before paying without it
+local PLACEMENT_TRIES = 5
 
 local ProgressService = {}
 
 local spMultiplier = Seasons.SP_MULTIPLIER
+local refreshing: { [Player]: boolean } = {}
+local placementFailures: { [Player]: number } = {}
 
 local function notify(player: Player, kind: string, payload: any)
 	Net.events.ProgressEvent:FireClient(player, kind, payload)
@@ -173,16 +182,62 @@ local function refreshQuests(player: Player, data)
 	end
 end
 
--- season change (soft reset), inactivity decay and the daily login bonus
-local function refreshSeason(player: Player, data)
+-- pays the rewards for the season the player last played and moves them to the current one (soft reset)
+local function endSeason(player: Player, data, placement: number?)
 	local season = data.season
 	local current = Seasons.current()
-	if season.id ~= current then
-		season.history[tostring(season.id)] = { sp = season.sp, peak = season.peak }
-		season.sp = Seasons.softReset(season.sp)
-		season.peak = season.sp
-		season.id = current
-		notify(player, "newSeason", { name = Seasons.name(current), sp = season.sp })
+	local endedId = season.id
+	local played = (season.peak or 0) > 0
+
+	if played then
+		-- decay up to the day the season ended, so the final rank matches the last day of the season
+		local _, endsAt = Seasons.range(endedId)
+		if season.lastActiveDay > 0 and endsAt then
+			season.sp = Seasons.decay(season.sp, Seasons.today(endsAt) - season.lastActiveDay)
+		end
+		local rank = Ranks.fromSp(season.sp)
+		local cash = Seasons.RANK_REWARDS[rank.tier.id] or 0
+		local titles = { Titles.seasonRank(endedId, rank.tier.id) }
+		local top = if rank.tier.id == "legend" and placement then Seasons.topReward(placement) else nil
+		if top then
+			cash += top.cash
+			table.insert(titles, 1, Titles.seasonTop(endedId, top.id))
+		end
+		for _, titleId in titles do
+			if Titles.get(titleId) then
+				CosmeticService:Unlock(player, "title", titleId)
+			end
+		end
+		if cash > 0 then
+			PlayerDataService:AddCash(player, cash)
+		end
+		season.history[tostring(endedId)] = {
+			sp = season.sp,
+			peak = season.peak,
+			rank = rank.name,
+			placement = if top then placement else nil,
+		}
+		notify(player, "seasonRewards", {
+			season = Seasons.name(endedId),
+			rank = rank.name,
+			placement = if top then placement else nil,
+			cash = cash,
+			titles = titles,
+		})
+	end
+
+	season.sp = if played then Seasons.softReset(season.sp) else 0
+	season.peak = season.sp
+	season.id = current
+	season.lastActiveDay = Seasons.today()
+	notify(player, "newSeason", { name = Seasons.name(current), sp = season.sp })
+end
+
+-- season change, inactivity decay and the daily login bonus
+local function refreshSeason(player: Player, data, placement: number?)
+	local season = data.season
+	if season.id ~= Seasons.current() then
+		endSeason(player, data, placement)
 	end
 
 	local today = Seasons.today()
@@ -276,15 +331,57 @@ function ProgressService:GetSpMultiplier(): number
 end
 
 local function refresh(player: Player)
-	withData(player, function(data)
-		refreshSeason(player, data)
-		refreshQuests(player, data)
+	if refreshing[player] then
+		return
+	end
+	refreshing[player] = true
+
+	-- a season that ended needs the player's final top 100 placement (a datastore read) before paying rewards
+	local placement = nil
+	local seasonReady = true
+	local data = PlayerDataService:GetData(player)
+	if data then
+		ensure(data)
+		local season = data.season
+		if season.id ~= Seasons.current() and (season.peak or 0) >= Seasons.LEADERBOARD_MIN_SP then
+			local ok, place = LeaderboardService:Placement(season.id, player.UserId)
+			if ok then
+				placement = place
+			else
+				placementFailures[player] = (placementFailures[player] or 0) + 1
+				seasonReady = placementFailures[player] > PLACEMENT_TRIES
+				if seasonReady then
+					warn(
+						`[ProgressService] no leaderboard placement for {player.Name}, paying season rewards without it`
+					)
+				end
+			end
+		end
+	end
+
+	local ok, err = pcall(withData, player, function(current)
+		if seasonReady then
+			refreshSeason(player, current, placement)
+		end
+		refreshQuests(player, current)
 	end)
+	if not ok then
+		warn(`[ProgressService] refresh failed for {player.Name}: {err}`)
+	end
+	refreshing[player] = nil
+end
+
+function ProgressService:Sync(player: Player)
+	withData(player, function() end)
 end
 
 function ProgressService:Init()
 	ReplicatedStorage:SetAttribute("SPMultiplier", spMultiplier)
 	PlayerDataService.Loaded:Connect(refresh)
+	Players.PlayerRemoving:Connect(function(player)
+		refreshing[player] = nil
+		placementFailures[player] = nil
+	end)
 end
 
 function ProgressService:Start()
