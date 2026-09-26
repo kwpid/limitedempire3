@@ -3,9 +3,10 @@
 -- does not render particles, lights, fire, sparkles, beams or trails in viewports, so trait effects and an item's
 -- own effects would be missing. a normal blur would blur the item too, so a depth of field effect keeps the item
 -- sharp and blurs the world behind it heavily, with a faint dark backdrop behind the item. the player's own
--- character is hidden while inspecting and the camera is given back on hide. zooming changes the field of view
--- instead of the distance, so the item stays in focus and the background stays blurred at any zoom. while it is
--- showing, the local player gets the "LE_Inspecting" attribute (overheads hide themselves).
+-- character is hidden while inspecting and the camera is given back on hide. zooming moves the item closer or
+-- further; the focus follows the item and blurs both what is behind it and what ends up in front of it, so the
+-- background stays blurred at any zoom. while it is showing, the local player gets the "LE_Inspecting" attribute
+-- (overheads hide themselves).
 -- api: InspectStage.prepare(item) (starts loading early, e.g. during the case spin), InspectStage.show(item) ->
 -- boolean (yields until the model is ready, false if it could not load), .rotate(dx, dy), .zoom(delta), .hide()
 
@@ -178,7 +179,7 @@ local function takeCamera()
 	if not focus then
 		focus = Instance.new("DepthOfFieldEffect")
 		focus.Name = "LE_InspectFocus"
-		focus.NearIntensity = 0
+		focus.NearIntensity = 1
 		focus.FarIntensity = 1
 		focus.Parent = Lighting
 	end
@@ -246,7 +247,7 @@ local function place(s: Slot)
 		end
 		return
 	end
-	local distance = s.extent * CAMERA_DISTANCE
+	local distance = s.extent * CAMERA_DISTANCE * s.zoom
 	local center = camera.Position + camera.LookVector * distance
 	if model then
 		local offset = dropOffset(s)
@@ -258,7 +259,6 @@ local function place(s: Slot)
 		)
 	end
 	workspace.CurrentCamera.CFrame = camera
-	workspace.CurrentCamera.FieldOfView = math.clamp(FOV * s.zoom, 12, 70)
 	if focus then
 		focus.FocusDistance = distance
 		focus.InFocusRadius = math.max(s.extent * 0.7, 1)
