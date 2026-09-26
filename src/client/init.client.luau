@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
 
 local React = require(ReplicatedStorage:WaitForChild("Packages"):WaitForChild("React"))
 local ReactRoblox = require(ReplicatedStorage.Packages:WaitForChild("ReactRoblox"))
@@ -16,6 +17,9 @@ local EffectsToggle = require(Controllers.EffectsToggle)
 local ChatTags = require(Controllers.ChatTags)
 local App = require(script:WaitForChild("UI"):WaitForChild("App"))
 local OverheadLayer = require(script.UI:WaitForChild("Overheads"):WaitForChild("OverheadLayer"))
+
+-- equipped tools are always held (AvatarService), so the hotbar and its number key equip / unequip are turned off
+pcall(StarterGui.SetCoreGuiEnabled, StarterGui, Enum.CoreGuiType.Backpack, false)
 
 Perf.start()
 WearRenderer.start()

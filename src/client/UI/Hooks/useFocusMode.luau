@@ -10,7 +10,6 @@ local BLUR_SIZE = 48
 local CORE_TYPES = {
 	Enum.CoreGuiType.PlayerList,
 	Enum.CoreGuiType.Chat,
-	Enum.CoreGuiType.Backpack,
 	Enum.CoreGuiType.EmotesMenu,
 	Enum.CoreGuiType.Health,
 }

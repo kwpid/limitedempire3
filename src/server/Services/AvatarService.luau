@@ -7,8 +7,9 @@
 -- AccessoryDescription.Instance when available, otherwise by mesh id / name against ItemModelService models.
 -- custom items (ItemRegistry.isCustom) and tools (gear, catalog or custom) can't go through the description, so they
 -- are cloned from their real object (ItemModelService:GetWearable) after the description is applied: accessories
--- go on the character, the one equipped tool is put straight in the player's hand (it can't be dropped). both are
--- tagged LE_CustomWorn so the next refresh can swap them out.
+-- go on the character, the one equipped tool is put straight in the player's hand and kept there (it can't be
+-- dropped or put away, the client hides the hotbar). both are tagged LE_CustomWorn so the next refresh can swap
+-- them out.
 --
 -- api: AvatarService:SetEquipped(player, uids) -> { ok, err? }, AvatarService:Refresh(player), AvatarService:Spawn(player)
 -- client calls it through Net.functions.SetEquipped:InvokeServer({ uid, ... }).
@@ -179,6 +180,16 @@ local function decorate(humanoid: Humanoid, items: { Types.ItemInstance })
 				ItemEffects.apply(tool, item)
 				tool.Parent = backpack
 				humanoid:EquipTool(tool)
+				-- put it straight back in the hand if it ever ends up in the backpack
+				tool.AncestryChanged:Connect(function()
+					if tool.Parent == backpack and humanoid.Parent and humanoid.Health > 0 then
+						task.defer(function()
+							if tool.Parent == backpack then
+								humanoid:EquipTool(tool)
+							end
+						end)
+					end
+				end)
 			elseif wearable then
 				wearable:Destroy()
 			end
