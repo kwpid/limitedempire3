@@ -135,12 +135,12 @@ function TradeParts.HoverLayer(props)
 		Root = e("Frame", {
 			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
-			[React.Ref] = rootRef,
+			ref = rootRef,
 		}, {
 			Unit = e("Frame", {
 				Size = UDim2.fromOffset(UNIT, UNIT),
 				BackgroundTransparency = 1,
-				[React.Ref] = unitRef,
+				ref = unitRef,
 			}),
 			Content = e("Frame", {
 				Size = UDim2.fromScale(1, 1),
@@ -227,7 +227,7 @@ function TradeParts.Tile(props)
 	return e("Frame", {
 		LayoutOrder = props.layoutOrder,
 		BackgroundTransparency = 1,
-		[React.Ref] = frameRef,
+		ref = frameRef,
 		[React.Event.MouseEnter] = function(rbx)
 			if hover then
 				hover.open(item, rbx)
