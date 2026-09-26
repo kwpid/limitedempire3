@@ -1,7 +1,8 @@
 -- a player name drawn in a name style (Shared.Visuals.NameStyles): font, case, outline, a whole-name effect
 -- (shimmer, rainbow, pulse, flicker) and, for styles with letters, every letter moving on its own (wave, bounce,
--- spin, shake, sway, pulse, float, zigzag, glitch, typewriter). with letters, each letter sits in a slot sized to
--- the real glyph and the visible copy moves inside it, so moving letters never push the rest of the name around.
+-- spin, shake, sway, pulse, float, zigzag, glitch, typewriter). with letters, each letter sits in a slot with the
+-- glyph's measured width (a fixed size, not AutomaticSize: that would grow with the moving copy inside it and space
+-- the name out) and the visible copy moves inside it, so moving letters never push the rest of the name around.
 -- everything holds still when the "animatedText" setting is off.
 -- props: text, styleId, textSize?, size, position?, anchorPoint?, layoutOrder?, alignment?, strokeTransparency?
 
@@ -12,6 +13,7 @@ local NameStyles = require(ReplicatedStorage.Shared.Visuals.NameStyles)
 local Theme = require(script.Parent.Parent.Theme)
 local clock = require(script.Parent.Parent.Clock)
 local useSetting = require(script.Parent.Parent.Hooks.useSetting)
+local useTextWidth = require(script.Parent.Parent.Hooks.useTextWidth)
 
 local e = React.createElement
 
@@ -217,18 +219,17 @@ local function Letter(props)
 		return { motion(kind, t, i, count, style.speed, size) }
 	end)
 	local font = fontFor(style)
+	-- a space measures as nothing in some fonts, so it gets a third of the text size
+	local width = useTextWidth(char, font, size)
+	if char == " " or width <= 0 then
+		width = math.max(width, math.ceil(size * 0.33))
+	end
 
 	-- the slot holds the real width, the glyph inside it moves
-	return e("TextLabel", {
+	return e("Frame", {
 		LayoutOrder = i,
-		Size = UDim2.fromScale(0, 1),
-		AutomaticSize = Enum.AutomaticSize.X,
+		Size = UDim2.new(0, width, 1, 0),
 		BackgroundTransparency = 1,
-		Text = char,
-		FontFace = font,
-		TextSize = size,
-		TextTransparency = 1,
-		TextStrokeTransparency = 1,
 	}, {
 		Glyph = e("TextLabel", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
