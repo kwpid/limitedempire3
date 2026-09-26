@@ -5,6 +5,7 @@ local React = require(ReplicatedStorage.Packages.React)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
 local Ranks = require(ReplicatedStorage.Shared.Progress.Ranks)
+local Titles = require(ReplicatedStorage.Shared.Titles)
 local Theme = require(script.Parent.Parent.Theme)
 local Text = require(script.Parent.Parent.Components.Text)
 local NameLabel = require(script.Parent.Parent.Components.NameLabel)
@@ -17,7 +18,15 @@ local e = React.createElement
 
 -- the overhead is laid out at this pixel size, then scaled to match the billboard's on-screen size
 local DESIGN_WIDTH = 260
-local DESIGN_HEIGHT = 74
+-- rows from the bottom up: value pill, username line, name, title (when one is equipped), stat trackers. the
+-- overhead is exactly as tall as what it shows, so nothing hangs outside the billboard (trackers above a title used to)
+local VALUE_HEIGHT = 20
+local USERNAME_HEIGHT = 14
+local NAME_HEIGHT = 24
+local TITLE_HEIGHT = 18
+local ROW_GAP = 2
+-- where the bottom of the overhead sits above the head, in studs
+local BOTTOM_OFFSET = 1.85
 local TRACKERS_PER_ROW = 3
 local TRACKER_TEXT_SIZE = 12
 local TRACKER_ROW_HEIGHT = TRACKER_TEXT_SIZE + 7
@@ -128,12 +137,25 @@ local function Overhead(props)
 	end, {})
 
 	local widthStuds = Config.Overhead.WidthStuds
+	local title = Titles.get(titleId)
+	local hasTitle = title ~= nil and title.id ~= Titles.NONE
+	local trackersHeight = if rowCount > 0
+		then rowCount * TRACKER_ROW_HEIGHT + (rowCount - 1) * TRACKER_ROW_GAP
+		else 0
+	local designHeight = VALUE_HEIGHT + ROW_GAP + USERNAME_HEIGHT + ROW_GAP + NAME_HEIGHT
+	if hasTitle then
+		designHeight += ROW_GAP + TITLE_HEIGHT
+	end
+	if rowCount > 0 then
+		designHeight += ROW_GAP + trackersHeight
+	end
+	local heightStuds = widthStuds * designHeight / DESIGN_WIDTH
 
 	return e("BillboardGui", {
 		ref = billboardRef,
 		Adornee = props.head,
-		Size = UDim2.fromScale(widthStuds, widthStuds * DESIGN_HEIGHT / DESIGN_WIDTH),
-		StudsOffsetWorldSpace = Vector3.new(0, 2.7, 0),
+		Size = UDim2.fromScale(widthStuds, heightStuds),
+		StudsOffsetWorldSpace = Vector3.new(0, BOTTOM_OFFSET + heightStuds / 2, 0),
 		AlwaysOnTop = true,
 		LightInfluence = 0,
 		MaxDistance = Config.Overhead.MaxDistance,
@@ -144,19 +166,14 @@ local function Overhead(props)
 		Content = scale > 0 and e("Frame", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromOffset(DESIGN_WIDTH, DESIGN_HEIGHT),
+			Size = UDim2.fromOffset(DESIGN_WIDTH, designHeight),
 			BackgroundTransparency = 1,
 		}, {
 			Scale = e("UIScale", { Scale = scale }),
 			Trackers = if rowCount > 0
 				then e("Frame", {
 					LayoutOrder = 0,
-					Size = UDim2.new(
-						1,
-						0,
-						0,
-						rowCount * TRACKER_ROW_HEIGHT + (rowCount - 1) * TRACKER_ROW_GAP
-					),
+					Size = UDim2.new(1, 0, 0, trackersHeight),
 					BackgroundTransparency = 1,
 				}, trackerRows)
 				else nil,
@@ -164,24 +181,25 @@ local function Overhead(props)
 				FillDirection = Enum.FillDirection.Vertical,
 				HorizontalAlignment = Enum.HorizontalAlignment.Center,
 				VerticalAlignment = Enum.VerticalAlignment.Bottom,
-				Padding = UDim.new(0, 2),
+				Padding = UDim.new(0, ROW_GAP),
 				SortOrder = Enum.SortOrder.LayoutOrder,
 			}),
 			Name = e(NameLabel, {
 				layoutOrder = 2,
-				size = UDim2.new(1, 0, 0, 24),
+				size = UDim2.new(1, 0, 0, NAME_HEIGHT),
 				text = player.DisplayName,
 				styleId = styleId,
 				textSize = 22,
 			}),
-			Title = e(TitleText, {
+			Title = hasTitle and e(TitleText, {
 				layoutOrder = 1,
 				titleId = titleId,
 				textSize = 14,
-			}),
+				size = UDim2.new(1, 0, 0, TITLE_HEIGHT),
+			}) or nil,
 			Username = e(Text, {
 				LayoutOrder = 3,
-				Size = UDim2.new(1, 0, 0, 14),
+				Size = UDim2.new(1, 0, 0, USERNAME_HEIGHT),
 				Text = usernameLine(player, level, rankName),
 				RichText = true,
 				TextSize = 13,
@@ -191,7 +209,7 @@ local function Overhead(props)
 			}),
 			Value = e("Frame", {
 				LayoutOrder = 4,
-				Size = UDim2.fromOffset(0, 20),
+				Size = UDim2.fromOffset(0, VALUE_HEIGHT),
 				AutomaticSize = Enum.AutomaticSize.X,
 				BackgroundColor3 = Theme.colors.topbar,
 				BackgroundTransparency = 0.15,

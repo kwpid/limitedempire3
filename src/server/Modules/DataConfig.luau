@@ -27,7 +27,7 @@ function DataConfig.template()
 		daily = { day = 0, hiloEarned = 0 },
 		career = { xp = 0 },
 		season = { id = 0, sp = 0, peak = 0, lastActiveDay = 0, lastLoginDay = 0, history = {} },
-		quests = { daily = {}, weekly = {}, done = {} },
+		quests = { hourly = {}, daily = {}, weekly = {}, done = {} },
 		metrics = {},
 		settings = {},
 		cosmetics = {

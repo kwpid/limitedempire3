@@ -72,6 +72,7 @@ local function ensure(data)
 	season.lastLoginDay = season.lastLoginDay or 0
 	season.history = season.history or {}
 	data.quests = data.quests or {}
+	data.quests.hourly = data.quests.hourly or {}
 	data.quests.daily = data.quests.daily or {}
 	data.quests.weekly = data.quests.weekly or {}
 	data.quests.done = data.quests.done or {}
@@ -138,7 +139,7 @@ local function track(player: Player, data, metric: string, amount: number)
 	local metrics = data.metrics
 	metrics[metric] = if isMax then math.max(metrics[metric] or 0, amount) else (metrics[metric] or 0) + amount
 
-	for _, set in { data.quests.daily, data.quests.weekly } do
+	for _, set in { data.quests.hourly, data.quests.daily, data.quests.weekly } do
 		for _, id in set.ids or {} do
 			local quest = Quests.get(id)
 			if quest and quest.metric == metric and not set.done[id] then
@@ -164,10 +165,20 @@ end
 local function refreshQuests(player: Player, data)
 	local today = Seasons.today()
 	local week = Quests.week(today)
+	local hour = Quests.hour()
+	local per = Quests.PER_DIFFICULTY
+	if data.quests.hourly.key ~= hour then
+		data.quests.hourly = {
+			key = hour,
+			ids = Quests.pick(Quests.hourly, hour * 31 + player.UserId, per.hourly),
+			progress = {},
+			done = {},
+		}
+	end
 	if data.quests.daily.key ~= today then
 		data.quests.daily = {
 			key = today,
-			ids = Quests.pick(Quests.daily, today * 7919 + player.UserId),
+			ids = Quests.pick(Quests.daily, today * 7919 + player.UserId, per.daily),
 			progress = {},
 			done = {},
 		}
@@ -175,7 +186,7 @@ local function refreshQuests(player: Player, data)
 	if data.quests.weekly.key ~= week then
 		data.quests.weekly = {
 			key = week,
-			ids = Quests.pick(Quests.weekly, week * 104729 + player.UserId),
+			ids = Quests.pick(Quests.weekly, week * 104729 + player.UserId, per.weekly),
 			progress = {},
 			done = {},
 		}
@@ -278,6 +289,7 @@ function ProgressService:CaseOpened(player: Player, case, item)
 		local traits = #Traits.of(item)
 		track(player, data, "cases", 1)
 		track(player, data, "premiumCases", if case.price >= PREMIUM_CASE_PRICE then 1 else 0)
+		track(player, data, "spent", case.price)
 		track(player, data, "epicPlus", if tier.rank >= 4 then 1 else 0)
 		track(player, data, "legendaryPlus", if tier.rank >= 5 then 1 else 0)
 		track(player, data, "mythicPlus", if tier.rank >= 6 then 1 else 0)
@@ -315,6 +327,7 @@ end
 
 function ProgressService:ResetQuests(player: Player)
 	withData(player, function(data)
+		data.quests.hourly = {}
 		data.quests.daily = {}
 		data.quests.weekly = {}
 		refreshQuests(player, data)

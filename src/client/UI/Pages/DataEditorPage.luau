@@ -442,7 +442,8 @@ local function CosmeticsSection(props)
 		local unlocked = unlockedSet(kind)
 		local children = {}
 		for index, entry in list do
-			if entry.grant then
+			-- season titles have their own picker (admin tools, Grant title)
+			if entry.grant or (kind == "title" and Titles.isSeason(entry.id)) then
 				continue
 			end
 			children[entry.id] = e(Chip, {

@@ -476,7 +476,7 @@ local function QuestRow(props)
 	local done = props.done
 	local value = math.min(props.value or 0, quest.goal)
 	local color = Quests.DIFFICULTY_COLORS[quest.difficulty] or Theme.colors.text
-	local goalText = if quest.metric == "unboxedValue"
+	local goalText = if quest.metric == "unboxedValue" or quest.metric == "spent"
 		then `{Format.short(value)} / {Format.short(quest.goal)}`
 		else `{Format.commas(value)} / {Format.commas(quest.goal)}`
 	return e("Frame", {
@@ -577,6 +577,8 @@ local function QuestsTab(props)
 		end
 	end
 
+	header("HourlyHeader", "Hourly", `Resets in {duration((Quests.hour(now) + 1) * 3600 - now)}`)
+	set("Hourly", quests.hourly)
 	header("DailyHeader", "Daily", `Resets in {duration((today + 1) * DAY - now)}`)
 	set("Daily", quests.daily)
 	header("WeeklyHeader", "Weekly", `Resets in {duration((Quests.week(today) + 1) * 7 * DAY - now)}`)

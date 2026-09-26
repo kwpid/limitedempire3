@@ -9,9 +9,11 @@
 -- end of season titles are made below for every season up to the current one: "s{n}_{rank tier}" (S0 Gold, rank
 -- color, Champion white with a purple glow, Legend white with a gold glow) and "s{n}_{top reward id}" (S0 Top 10
 -- Legend, gold with a purple glow). ProgressService unlocks them when a season ends (Shared/Progress/Seasons).
+-- SEASONS_AHEAD future seasons get titles too, so admins can grant them for testing.
 --
 -- api: Titles.list (display order), Titles.get(id) -> Title?, Titles.NONE ("none"),
--- Titles.seasonRank(seasonId, tierId) -> id, Titles.seasonTop(seasonId, rewardId) -> id
+-- Titles.seasonRank(seasonId, tierId) -> id, Titles.seasonTop(seasonId, rewardId) -> id,
+-- Titles.season(seasonId) -> { Title } (that season's titles, best first), Titles.isSeason(id) -> boolean
 
 export type Title = {
 	id: string,
@@ -212,12 +214,16 @@ local function seasonTopId(seasonId: number, rewardId: string): string
 	return `s{seasonId}_{rewardId}`
 end
 
--- newest season first, placements above ranks, best first. made up to the current season so a server that is
--- running when a season ends already knows that season's titles
-for seasonId = (Seasons.current()), 0, -1 do
+-- season titles, placements above ranks, best first. made up to SEASONS_AHEAD past the current season, so a
+-- server running when a season ends already knows that season's titles (and admins can test future ones)
+local SEASONS_AHEAD = 5
+local bySeason: { [number]: { Title } } = {}
+
+for seasonId = Seasons.current() + SEASONS_AHEAD, 0, -1 do
+	bySeason[seasonId] = {}
 	local seasonName = Seasons.name(seasonId)
 	for _, reward in Seasons.TOP_REWARDS do
-		table.insert(LIST, {
+		table.insert(bySeason[seasonId], {
 			id = seasonTopId(seasonId, reward.id),
 			name = `S{seasonId} {reward.name}`,
 			color = GOLD,
@@ -231,7 +237,7 @@ for seasonId = (Seasons.current()), 0, -1 do
 	for index = #Ranks.tiers, 1, -1 do
 		local tier = Ranks.tiers[index]
 		local glowColor = if tier.id == "legend" then GOLD_GLOW elseif tier.id == "champion" then PURPLE_GLOW else nil
-		table.insert(LIST, {
+		table.insert(bySeason[seasonId], {
 			id = seasonRankId(seasonId, tier.id),
 			name = `S{seasonId} {tier.name}`,
 			color = if glowColor then WHITE else tier.color,
@@ -239,6 +245,12 @@ for seasonId = (Seasons.current()), 0, -1 do
 			glowColor = glowColor,
 			description = `Finished {seasonName} in {tier.name}.`,
 		})
+	end
+end
+
+for seasonId = 0, Seasons.current() + SEASONS_AHEAD do
+	for _, title in bySeason[seasonId] do
+		table.insert(LIST, title)
 	end
 end
 
@@ -253,6 +265,14 @@ Titles.list = LIST
 Titles.NONE = "none"
 Titles.seasonRank = seasonRankId
 Titles.seasonTop = seasonTopId
+
+function Titles.season(seasonId: number): { Title }
+	return bySeason[seasonId] or {}
+end
+
+function Titles.isSeason(id: string): boolean
+	return string.match(id, "^s%d+_") ~= nil
+end
 
 function Titles.get(id: string?): Title?
 	return id and byId[id] or nil

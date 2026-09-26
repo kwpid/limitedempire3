@@ -24,6 +24,8 @@
 --   multiplier for Season Points, until the server shuts down; the default lives in Shared/Progress/Seasons),
 --   "setBoardAllRanks" { value } (SP top 100 lists every rank instead of Legends only, this server)
 --   "dataSp" { userId, amount, set? } (add, remove or set any player's SP), "dataXp" { userId, amount }
+--   "grantTitle" { titleId, userId?, remove? } unlocks (or takes away) any title for a player by user id, online or
+--   offline; without userId it goes to you and is equipped
 -- to add an action, add a handler to ACTIONS below.
 
 local HttpService = game:GetService("HttpService")
@@ -37,6 +39,7 @@ local Net = require(Shared.Net)
 local Types = require(Shared.Types)
 local Condition = require(Shared.Modifiers.Condition)
 local Tiers = require(Shared.Items.Tiers)
+local Titles = require(Shared.Titles)
 local Traits = require(Shared.Modifiers.Traits)
 local LuckService = require(script.Parent.LuckService)
 local CosmeticService = require(script.Parent.CosmeticService)
@@ -252,6 +255,21 @@ local ACTIONS: { [string]: (Player, any) -> Types.Result<any> } = {
 	resetQuests = function(player)
 		ProgressService:ResetQuests(player)
 		return { ok = true }
+	end,
+
+	grantTitle = function(player, payload)
+		if type(payload) ~= "table" or type(payload.titleId) ~= "string" or not Titles.get(payload.titleId) then
+			return { ok = false, err = "Unknown title" }
+		end
+		local userId = payload.userId
+		if userId == nil or userId == player.UserId then
+			if payload.remove == true then
+				return DataEditor.setCosmetic(player.UserId, "title", payload.titleId, false)
+			end
+			CosmeticService:Unlock(player, "title", payload.titleId)
+			return CosmeticService:Equip(player, "title", payload.titleId)
+		end
+		return DataEditor.setCosmetic(userId, "title", payload.titleId, payload.remove ~= true)
 	end,
 
 	setBoardAllRanks = function(_, payload)

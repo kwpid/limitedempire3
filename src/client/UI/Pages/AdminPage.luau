@@ -5,6 +5,8 @@ local React = require(ReplicatedStorage.Packages.React)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Format = require(ReplicatedStorage.Shared.Util.Format)
 local NameStyles = require(ReplicatedStorage.Shared.Visuals.NameStyles)
+local Seasons = require(ReplicatedStorage.Shared.Progress.Seasons)
+local Titles = require(ReplicatedStorage.Shared.Titles)
 local Condition = require(ReplicatedStorage.Shared.Modifiers.Condition)
 local Tiers = require(ReplicatedStorage.Shared.Items.Tiers)
 local Traits = require(ReplicatedStorage.Shared.Modifiers.Traits)
@@ -21,7 +23,7 @@ local QUICK_AMOUNTS = { 1_000, 10_000, 100_000, 1_000_000, 100_000_000 }
 local QUICK_LUCK = { 1, 2, 5, 10, 50, 100, 1000 }
 local CONFIRM_WINDOW = 3
 local OVERRIDE_COUNTS = { 1, 5, 25, -1 }
-local PAGE_HEIGHT = 904
+local PAGE_HEIGHT = 1120
 local QUICK_XP = { 100, 1_000, 10_000, 100_000 }
 local QUICK_SP = { 100, 1_000, 10_000, -1_000 }
 local SP_MULTIPLIERS = { 0.5, 1, 1.5, 2, 3, 5 }
@@ -132,6 +134,10 @@ local function AdminPage(props)
 	local pending, setPending = React.useState(false)
 	local armed, setArmed = React.useState(nil)
 	local luck = usePlayerAttribute("Luck") or 1
+	local ownedTitlesRaw = usePlayerAttribute("OwnedTitles")
+	local grantSeason, setGrantSeason = React.useState((Seasons.current()))
+	local grantRemove, setGrantRemove = React.useState(false)
+	local grantUserRef = React.useRef(nil)
 	local spMultiplier, setSpMultiplier = React.useState(ReplicatedStorage:GetAttribute("SPMultiplier") or 1)
 	local boardAllRanks, setBoardAllRanks = React.useState(ReplicatedStorage:GetAttribute("SPBoardAllRanks") == true)
 	React.useEffect(function()
@@ -470,6 +476,85 @@ local function AdminPage(props)
 		end,
 	})
 
+	-- grant title: any season title, to you (and equipped) or to a user id
+	local ownedTitles = {}
+	do
+		local ok, list = pcall(HttpService.JSONDecode, HttpService, ownedTitlesRaw or "[]")
+		for _, id in if ok and type(list) == "table" then list else {} do
+			ownedTitles[id] = true
+		end
+	end
+	local function grantTitle(titleId: string)
+		if pending then
+			return
+		end
+		local box = grantUserRef.current
+		local text = box and box.Text:gsub("%s", "") or ""
+		local userId = tonumber(text)
+		if text ~= "" and not userId then
+			Notifications.push("User id must be a number (leave it blank for you)", Theme.colors.bad)
+			return
+		end
+		setPending(true)
+		task.spawn(function()
+			local result = Actions.admin("grantTitle", { titleId = titleId, userId = userId, remove = grantRemove })
+			setPending(false)
+			if result.ok then
+				local title = Titles.get(titleId)
+				local verb = if grantRemove then "removed" else "granted"
+				Notifications.push(`[admin] {verb} {title and title.name or titleId}`, Theme.colors.cash)
+			else
+				Notifications.push(result.err or "Admin action failed", Theme.colors.bad)
+			end
+		end)
+	end
+	local seasonChips = {}
+	for seasonId = 0, Seasons.current() + 5 do
+		seasonChips["S" .. seasonId] = e(Chip, {
+			layoutOrder = seasonId,
+			text = `S{seasonId}`,
+			width = 48,
+			active = grantSeason == seasonId,
+			onClick = function()
+				setGrantSeason(seasonId)
+			end,
+		})
+	end
+	local modeChips = {
+		Grant = e(Chip, {
+			layoutOrder = 1,
+			text = "Grant",
+			width = 70,
+			active = not grantRemove,
+			onClick = function()
+				setGrantRemove(false)
+			end,
+		}),
+		Remove = e(Chip, {
+			layoutOrder = 2,
+			text = "Remove",
+			width = 70,
+			active = grantRemove,
+			onClick = function()
+				setGrantRemove(true)
+			end,
+		}),
+	}
+	local titleChips = {}
+	for index, title in Titles.season(grantSeason) do
+		titleChips[title.id] = e(Chip, {
+			layoutOrder = index,
+			text = title.name,
+			width = 132,
+			textSize = 12,
+			active = ownedTitles[title.id] == true,
+			disabled = pending,
+			onClick = function()
+				grantTitle(title.id)
+			end,
+		})
+	end
+
 	return e("ScrollingFrame", {
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
@@ -539,6 +624,67 @@ local function AdminPage(props)
 				Size = UDim2.new(1, -100, 0, 28),
 				BackgroundTransparency = 1,
 			}, chipRow(boardChips)),
+		}),
+		GrantTitle = e(Section, {
+			title = "Grant title",
+			position = UDim2.fromOffset(0, 904),
+			size = UDim2.new(1, -10, 0, 200),
+		}, {
+			PlayerLabel = e(Text, {
+				Position = UDim2.fromOffset(0, 30),
+				Size = UDim2.fromOffset(90, 28),
+				Text = "Player",
+				TextSize = 12,
+				TextColor3 = Theme.colors.textFaint,
+			}),
+			PlayerBox = e("TextBox", {
+				ref = grantUserRef,
+				Position = UDim2.fromOffset(100, 30),
+				Size = UDim2.fromOffset(200, 28),
+				BackgroundColor3 = Theme.colors.panel,
+				BorderSizePixel = 0,
+				ClearTextOnFocus = false,
+				PlaceholderText = "user id (blank = you)",
+				PlaceholderColor3 = Theme.colors.textFaint,
+				Text = "",
+				TextColor3 = Theme.colors.text,
+				FontFace = Theme.font(Enum.FontWeight.Medium),
+				TextSize = 13,
+				TextXAlignment = Enum.TextXAlignment.Left,
+			}, {
+				Corner = e("UICorner", { CornerRadius = Theme.radius }),
+				Stroke = e("UIStroke", { Color = Theme.colors.stroke }),
+				Padding = e("UIPadding", { PaddingLeft = UDim.new(0, 8) }),
+			}),
+			Mode = e("Frame", {
+				Position = UDim2.fromOffset(310, 30),
+				Size = UDim2.fromOffset(150, 28),
+				BackgroundTransparency = 1,
+			}, chipRow(modeChips)),
+			SeasonLabel = e(Text, {
+				Position = UDim2.fromOffset(0, 64),
+				Size = UDim2.fromOffset(90, 28),
+				Text = "Season",
+				TextSize = 12,
+				TextColor3 = Theme.colors.textFaint,
+			}),
+			Seasons = e("Frame", {
+				Position = UDim2.fromOffset(100, 64),
+				Size = UDim2.new(1, -100, 0, 28),
+				BackgroundTransparency = 1,
+			}, chipRow(seasonChips)),
+			TitlesLabel = e(Text, {
+				Position = UDim2.fromOffset(0, 98),
+				Size = UDim2.fromOffset(90, 28),
+				Text = "Titles",
+				TextSize = 12,
+				TextColor3 = Theme.colors.textFaint,
+			}),
+			Titles = e("Frame", {
+				Position = UDim2.fromOffset(100, 98),
+				Size = UDim2.new(1, -100, 0, 64),
+				BackgroundTransparency = 1,
+			}, chipRow(titleChips)),
 		}),
 		NextUnbox = e(Section, {
 			title = "Next unbox (testing)",

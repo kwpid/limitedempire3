@@ -143,18 +143,18 @@ function CosmeticService:Init()
 		watch(player)
 	end
 	Net.functions.SetCosmetic.OnServerInvoke = function(player, kindId, id)
-		function CosmeticService:Start()
-			for _, player in Players:GetPlayers() do
-				publish(player)
-			end
-		end
-
 		return CosmeticService:Equip(player, kindId, id)
 	end
 	for _, player in Players:GetPlayers() do
 		if PlayerDataService:Get(player) then
 			task.spawn(publish, player)
 		end
+	end
+end
+
+function CosmeticService:Start()
+	for _, player in Players:GetPlayers() do
+		publish(player)
 	end
 end
 
