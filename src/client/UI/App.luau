@@ -34,6 +34,7 @@ local usePlayerState = require(script.Parent.Hooks.usePlayerState)
 local useIsAdmin = require(script.Parent.Hooks.useIsAdmin)
 local useFocusMode = require(script.Parent.Hooks.useFocusMode)
 local useTrades = require(script.Parent.Hooks.useTrades)
+local useTopbarIcon = require(script.Parent.Hooks.useTopbarIcon)
 local Actions = require(script.Parent.Parent.Controllers.Actions)
 local ClientSettings = require(script.Parent.Parent.Controllers.ClientSettings)
 local Notifications = require(script.Parent.Parent.Controllers.Notifications)
@@ -52,6 +53,8 @@ local ADMIN_TABS = {
 	{ id = "data", text = "Player Data" },
 }
 local TAB_HEIGHT = 32
+-- settings sits in the Roblox topbar (TopbarPlus), next to Roblox's own buttons
+local SETTINGS_ICON = { image = "rbxasset://textures/ui/Settings/MenuBarIcons/GameSettingsTab.png", caption = "Settings" }
 
 local function playReveal(item)
 	local traits = Traits.of(item)
@@ -258,6 +261,17 @@ local function App(props)
 			setSelectedCaseId(nil)
 		end
 	end, {})
+
+	useTopbarIcon(SETTINGS_ICON, page == "settings", function(selected: boolean)
+		if selected then
+			Sfx.play("tab")
+			navigate("settings")
+		else
+			setPage(function(current)
+				return if current == "settings" then nil else current
+			end)
+		end
+	end, not focused)
 
 	local focusContent
 	if opening and not opening.revealed then

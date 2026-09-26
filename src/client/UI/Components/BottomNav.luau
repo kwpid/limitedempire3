@@ -1,8 +1,8 @@
 -- bottom navigation, CS:GO style: separate slate buttons with a faint diagonal stripe pattern, a light top edge and
 -- an accent bar along the bottom that lights up on hover and while the tab's window is open. Cases is the big button
--- in the middle (it is the game), with the other tabs on either side: Inventory and Games to the left, Trades, Season
--- and Settings to the right. a tab can show a count badge (Trades shows trades waiting on you). admin stays apart in
--- the bottom right.
+-- in the middle (it is the game), with two tabs on either side: Inventory and Games to the left, Trades and Season to
+-- the right. Settings lives in the Roblox topbar instead (see App). a tab can show a count badge (Trades shows trades
+-- waiting on you). admin stays apart in the bottom right.
 -- props: page (open window id or nil), onNavigate(id?), badges? ({ [tabId]: number })
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -31,7 +31,6 @@ local TABS = {
 	{ id = "cases", text = "Cases", color = Color3.fromRGB(245, 185, 28), featured = true },
 	{ id = "trades", text = "Trades", color = Color3.fromRGB(60, 200, 170) },
 	{ id = "season", text = "Season", color = Color3.fromRGB(180, 110, 255) },
-	{ id = "settings", text = "Settings", color = Color3.fromRGB(160, 170, 180) },
 }
 local ADMIN_TAB = { id = "admin", text = "Admin", color = Color3.fromRGB(90, 235, 120) }
 
