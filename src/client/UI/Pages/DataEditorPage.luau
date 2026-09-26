@@ -69,7 +69,9 @@ local function Chip(props)
 	})
 end
 
-local function wrapRow(children, height: number, layoutOrder: number?)
+-- a row of buttons or boxes that wraps onto more lines and grows to fit them, so nothing overlaps the next row.
+-- minHeight is the height of one line
+local function wrapRow(children, minHeight: number, layoutOrder: number?)
 	children.Layout = e("UIListLayout", {
 		FillDirection = Enum.FillDirection.Horizontal,
 		Padding = UDim.new(0, 4),
@@ -78,7 +80,8 @@ local function wrapRow(children, height: number, layoutOrder: number?)
 	})
 	return e("Frame", {
 		LayoutOrder = layoutOrder,
-		Size = UDim2.new(1, 0, 0, height),
+		Size = UDim2.new(1, 0, 0, minHeight),
+		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
 	}, children)
 end
@@ -87,6 +90,7 @@ local function Label(props)
 	return e(Text, {
 		LayoutOrder = props.layoutOrder,
 		Size = UDim2.new(1, 0, 0, props.height or 16),
+		AutomaticSize = if props.wrapped then Enum.AutomaticSize.Y else nil,
 		Text = props.text,
 		TextSize = props.textSize or 12,
 		TextColor3 = props.color or Theme.colors.textFaint,
@@ -120,7 +124,7 @@ local function TraitPicker(props)
 			end,
 		})
 	end
-	return wrapRow(chips, 80, props.layoutOrder)
+	return wrapRow(chips, 24, props.layoutOrder)
 end
 
 local function readNumber(ref): number?
@@ -229,7 +233,11 @@ local function ItemEditor(props)
 				text = if item.tracker then tostring(item.tracker.opens) else "",
 			}),
 		}, 28, 6),
-		Hint = e(Label, { layoutOrder = 7, text = "Float 0 to 0.999999. Tracker count empty = no stat tracker." }),
+		Hint = e(Label, {
+			layoutOrder = 7,
+			text = "Float 0 to 0.999999. Tracker count empty = no stat tracker.",
+			wrapped = true,
+		}),
 		Buttons = wrapRow({
 			Save = e(Button, {
 				layoutOrder = 1,
@@ -389,14 +397,15 @@ local function CosmeticsSection(props)
 	end
 
 	return e(Section, { layoutOrder = 3, title = "Unlocked cosmetics" }, {
-		Hint = e(
-			Label,
-			{ layoutOrder = 1, text = "Green = unlocked. Role titles (everyone, admin, moderator) are not listed." }
-		),
+		Hint = e(Label, {
+			layoutOrder = 1,
+			text = "Green = unlocked. Role titles (everyone, admin, moderator) are not listed.",
+			wrapped = true,
+		}),
 		TitlesLabel = e(Label, { layoutOrder = 2, text = "Titles" }),
-		Titles = wrapRow(chips("title", Titles.list), 52, 3),
+		Titles = wrapRow(chips("title", Titles.list), 24, 3),
 		StylesLabel = e(Label, { layoutOrder = 4, text = "Name styles" }),
-		Styles = wrapRow(chips("nameStyle", NameStyles.list), 52, 5),
+		Styles = wrapRow(chips("nameStyle", NameStyles.list), 24, 5),
 	})
 end
 
