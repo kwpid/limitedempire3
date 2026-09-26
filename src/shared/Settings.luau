@@ -2,7 +2,8 @@
 -- data on the server (so settings follow the player) and replicated to their client.
 -- kinds: "toggle" (boolean), "choice" (one of options[].value), "tiers" (list of tier ids, the auto-sell picker).
 --
--- api: Settings.list, Settings.sections (ordered), Settings.get(id) -> def?, Settings.defaults() -> { [id]: value },
+-- api: Settings.list, Settings.sections (ordered names), Settings.sectionInfo[name] -> { description },
+-- Settings.get(id) -> def?, Settings.defaults() -> { [id]: value },
 -- Settings.resolve(saved?) -> saved values with defaults filled in, Settings.clean(id, value) -> value? (nil when
 -- the value is not allowed, used by the server to validate), Settings.shouldAutoSell(settings, item) -> boolean
 
@@ -27,7 +28,18 @@ export type Def = {
 
 local Settings = {}
 
-Settings.sections = { "Gameplay", "Auto-sell", "Graphics", "Audio", "Notifications", "Advanced" }
+Settings.sections = { "Gameplay", "Auto-sell", "Trading", "Interface", "Graphics", "Audio", "Notifications", "Advanced" }
+
+Settings.sectionInfo = {
+	Gameplay = { description = "Opening cases, auto-open and the games." },
+	["Auto-sell"] = { description = "Sell new unboxes you don't want the moment they drop." },
+	Trading = { description = "Who can trade with you." },
+	Interface = { description = "Menu size and what the screen shows." },
+	Graphics = { description = "Effects and overheads. Turn things off for better performance." },
+	Audio = { description = "Sound effects." },
+	Notifications = { description = "Which pop-ups you see." },
+	Advanced = { description = "Extra detail for players who want every number." },
+}
 
 -- tiers that auto-sell can pick. divine never auto-sells.
 Settings.autoSellTiers = {}
@@ -61,6 +73,37 @@ Settings.list = {
 		},
 	},
 	{
+		id = "autoOpenStopAt",
+		section = "Gameplay",
+		kind = "choice",
+		label = "Stop auto-open on",
+		description = "Auto-open stops by itself when you unbox this rarity or better.",
+		default = 0,
+		options = {
+			{ value = 0, label = "Never" },
+			{ value = 4, label = "Epic+" },
+			{ value = 5, label = "Legendary+" },
+			{ value = 6, label = "Mythic+" },
+			{ value = 7, label = "Exotic+" },
+		},
+	},
+	{
+		id = "skipCutscenes",
+		section = "Gameplay",
+		kind = "toggle",
+		label = "Skip cutscenes",
+		description = "Skip the Exotic and Divine reveal cutscenes and show the item right away.",
+		default = false,
+	},
+	{
+		id = "quickCashGames",
+		section = "Gameplay",
+		kind = "toggle",
+		label = "Quick coinflip and dice",
+		description = "Shorter coin flip and dice roll animations.",
+		default = false,
+	},
+	{
 		id = "autoSellTiers",
 		section = "Auto-sell",
 		kind = "tiers",
@@ -82,6 +125,36 @@ Settings.list = {
 		kind = "toggle",
 		label = "Keep special serials",
 		description = "Never auto-sell top 100 or pattern serials (#69, #777, #1000...).",
+		default = true,
+	},
+	{
+		id = "allowTrades",
+		section = "Trading",
+		kind = "toggle",
+		label = "Accept trade requests",
+		description = "When off, nobody can send you new trades. Trades already waiting stay.",
+		default = true,
+	},
+	{
+		id = "uiScale",
+		section = "Interface",
+		kind = "choice",
+		label = "Menu size",
+		description = "Size of windows and the bottom bar. Try Large on a phone.",
+		default = 1,
+		options = {
+			{ value = 0.9, label = "Small" },
+			{ value = 1, label = "Normal" },
+			{ value = 1.1, label = "Large" },
+			{ value = 1.2, label = "Larger" },
+		},
+	},
+	{
+		id = "showIncomeRate",
+		section = "Interface",
+		kind = "toggle",
+		label = "Show passive income",
+		description = "Your passive income per minute next to your balance.",
 		default = true,
 	},
 	{
@@ -144,6 +217,14 @@ Settings.list = {
 		kind = "toggle",
 		label = "Server unbox announcements",
 		description = "Pop-ups when other players unbox something big.",
+		default = true,
+	},
+	{
+		id = "tradeNotifications",
+		section = "Notifications",
+		kind = "toggle",
+		label = "Trade updates",
+		description = "Pop-ups for new trades, and trades accepted, declined or countered.",
 		default = true,
 	},
 	{

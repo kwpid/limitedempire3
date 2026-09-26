@@ -10,6 +10,7 @@ local Signal = require(Shared.Util.Signal)
 local Types = require(Shared.Types)
 local Notifications = require(script.Parent.Notifications)
 local Sfx = require(script.Parent.Sfx)
+local ClientSettings = require(script.Parent.ClientSettings)
 
 local NOTE_COLORS = {
 	info = Color3.fromRGB(120, 190, 255),
@@ -55,7 +56,7 @@ function Trades.start()
 		if type(nextList) == "table" then
 			set(nextList)
 		end
-		if type(note) == "table" and type(note.text) == "string" then
+		if type(note) == "table" and type(note.text) == "string" and ClientSettings.get("tradeNotifications") ~= false then
 			Sfx.play(if note.kind == "bad" then "error" elseif note.kind == "good" then "unlock" else "tab")
 			Notifications.push(note.text, NOTE_COLORS[note.kind] or NOTE_COLORS.info)
 		end

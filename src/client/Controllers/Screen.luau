@@ -5,14 +5,16 @@
 --   full: size of the full screen inside the device safe area (the focus layer: unboxing, inspect)
 --   topInset: how far Roblox's topbar reaches down into full, in pixels
 --   compact: a phone sized screen, where windows take the whole screen
+--   uiScale: the "Menu size" setting, a multiplier for windows and the hud
 
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Signal = require(ReplicatedStorage:WaitForChild("Shared").Util.Signal)
+local ClientSettings = require(script.Parent.ClientSettings)
 
-export type State = { safe: Vector2, full: Vector2, topInset: number, compact: boolean }
+export type State = { safe: Vector2, full: Vector2, topInset: number, compact: boolean, uiScale: number }
 
 local COMPACT_HEIGHT = 620
 local COMPACT_WIDTH = 900
@@ -21,7 +23,8 @@ local Screen = {
 	changed = Signal.new(),
 }
 
-local state: State = { safe = Vector2.new(1280, 662), full = Vector2.new(1280, 720), topInset = 58, compact = false }
+local state: State =
+	{ safe = Vector2.new(1280, 662), full = Vector2.new(1280, 720), topInset = 58, compact = false, uiScale = 1 }
 
 function Screen.get(): State
 	return state
@@ -59,15 +62,18 @@ function Screen.start()
 		end
 		local topInset = topbarBottom()
 		local compact = safeSize.Y < COMPACT_HEIGHT or safeSize.X < COMPACT_WIDTH
+		local uiScale = ClientSettings.get("uiScale")
+		uiScale = if type(uiScale) == "number" then uiScale else 1
 		if
 			safeSize == state.safe
 			and fullSize == state.full
 			and topInset == state.topInset
 			and compact == state.compact
+			and uiScale == state.uiScale
 		then
 			return
 		end
-		state = { safe = safeSize, full = fullSize, topInset = topInset, compact = compact }
+		state = { safe = safeSize, full = fullSize, topInset = topInset, compact = compact, uiScale = uiScale }
 		Screen.changed:Fire(state)
 	end
 	-- the probes get their size within a frame or two. waiting here means the first render already knows the screen
@@ -82,6 +88,7 @@ function Screen.start()
 	pcall(function()
 		GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(update)
 	end)
+	ClientSettings.changed:Connect(update)
 	update()
 end
 

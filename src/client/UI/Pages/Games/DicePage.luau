@@ -16,15 +16,19 @@ local BetInput = require(script.Parent.BetInput)
 local Parts = require(script.Parent.CashGameParts)
 local Actions = require(script.Parent.Parent.Parent.Parent.Controllers.Actions)
 local Sfx = require(script.Parent.Parent.Parent.Parent.Controllers.Sfx)
+local useSetting = require(script.Parent.Parent.Parent.Hooks.useSetting)
 
 local e = React.createElement
 
+-- the quickCashGames setting uses QUICK_ROLL_TIME
+local QUICK_ROLL_TIME = 0.25
 local ROLL_TIME = 0.8
 local HISTORY_HEIGHT = 56
 local BAR_HEIGHT = 18
 local PRESETS = { 10, 25, 50, 75, 90 }
 
 local function DicePage(props)
+	local duration = if useSetting("quickCashGames") then QUICK_ROLL_TIME else ROLL_TIME
 	local bet, setBet = React.useState(1000)
 	local chance, setChance = React.useState(50)
 	local chanceText, setChanceText = React.useState("50")
@@ -79,7 +83,7 @@ local function DicePage(props)
 			local started = os.clock()
 			local lastTick = 0
 			while alive.current do
-				local p = math.clamp((os.clock() - started) / ROLL_TIME, 0, 1)
+				local p = math.clamp((os.clock() - started) / duration, 0, 1)
 				local eased = 1 - (1 - p) ^ 3
 				local jitter = (1 - p) * (math.random() - 0.5) * 40
 				setShown(math.clamp(from + (data.result - from) * eased + jitter, 0, 100))
