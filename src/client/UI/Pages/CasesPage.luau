@@ -3,7 +3,7 @@
 -- with no search or filter it shows sections: the player's favorites (up to Settings.MAX_FAVORITE_CASES, starred on
 -- the cards), Getting Started for new players (until they have opened NEW_PLAYER_OPENS cases), then one section per
 -- case series (CaseData.caseSeries). with a search or filter it shows one list of results.
--- hidden rare special items are never searchable.
+-- hidden rare special items are never searchable (a season case's specials are shown, so they are).
 -- props: cash, opened (cases the player has opened), onSelect(caseId)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -68,7 +68,8 @@ local function index()
 	for _, case in CaseRegistry.list() do
 		local items = {}
 		for _, entry in case.items do
-			local info = not entry.special and ItemRegistry.get(entry.assetId)
+			-- hidden special items stay unsearchable, a season case's shown ones can be found
+			local info = (not entry.special or case.revealSpecials) and ItemRegistry.get(entry.assetId)
 			if info then
 				table.insert(items, { name = info.name, lower = string.lower(info.name), value = entry.value })
 			end

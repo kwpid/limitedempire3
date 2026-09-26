@@ -16,8 +16,11 @@
 -- caseSeries groups cases into the sections of the cases page (id, name, description, color, cases = { case id }),
 -- in display order. every case must be in exactly one case series.
 -- season cases: set season = n on a case and it can only be opened during that season (Shared/Progress/Seasons,
--- which also lists each season's case). specials = { assetId } puts items (custom ones too) in its hidden special
--- pool no matter their value: that is where a season's custom top item goes.
+-- which also lists each season's case). specials = { assetId } is its special pool, no matter their value: that is
+-- where a season's custom top item goes (rarity "seasonN" in CustomItems, the Alpha reward is "alpha"). a season
+-- case's specials are shown, not hidden, listed first as its top prize, and items worth specialMinValue+ are kept out
+-- of it so nothing outranks the season's item.
+-- tierLimits = { [tierId] = n } keeps only the n cheapest items of that rarity in a case (fewer exotics, say).
 -- icons: every case shows caseImage (an image asset id, drawn light so it tints well) tinted with the case color,
 -- with its best visible item on the front. set icon = imageAssetId on a case to give it its own art instead.
 
@@ -67,9 +70,10 @@ return {
 			cases = { "vintage", "class2010", "class2011", "class2012", "modern" } },
 	},
 	cases = {
-		-- Season 0. put the season's custom top item's asset id in specials once it is uploaded (and in CustomItems)
+		-- Season 0 (the Alpha). its top prize is the Alpha reward (CustomItems), and it keeps only its 3 cheapest exotics
 		{ id = "alpha", name = "Alpha Case", color = Color3.fromRGB(255, 196, 46), season = 0,
-			series = { "sparkle", "valhalla" }, guests = { "dominion", "royalty", "gems" }, specials = {} },
+			series = { "sparkle", "valhalla" }, guests = { "dominion", "royalty", "gems" },
+			specials = { 79714900624693 }, tierLimits = { exotic = 3 } },
 		{ id = "dominion", name = "Dominion Case", color = Color3.fromRGB(190, 40, 55),
 			series = { "dominion", "factions" }, guests = { "royalty", "sparkle" } },
 		{ id = "valkyrie", name = "Valkyrie Case", color = Color3.fromRGB(150, 205, 255),
