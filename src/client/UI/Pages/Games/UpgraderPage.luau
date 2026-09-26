@@ -27,6 +27,9 @@ local e = React.createElement
 local SIDE_WIDTH = 300
 local SPIN_TIME = 2.4
 local MAX_TARGETS = 90
+-- target list starts at this many times the value put in (lots of items sit just above any value, so without this
+-- the first page would always be targets at the max chance)
+local MULTIPLIERS = { 1.5, 2, 3, 5, 10, 25 }
 
 -- the marker bounces across the bar a few times and lands on the roll
 local function markerAt(roll: number, p: number): number
@@ -39,6 +42,7 @@ local function UpgraderPage(props)
 	local selected, setSelected = React.useState({})
 	local target, setTarget = React.useState(nil)
 	local targetQuery, setTargetQuery = React.useState("")
+	local multiplier, setMultiplier = React.useState(2)
 	local pending, setPending = React.useState(false)
 	local spin, setSpin = React.useState(nil)
 	local marker, setMarker = React.useBinding(0)
@@ -154,13 +158,14 @@ local function UpgraderPage(props)
 	local targetTiles = {}
 	local needle = string.lower(targetQuery)
 	local count = 0
+	local minValue = inputValue * multiplier
 	for _, assetId in Upgrader.targets() do
 		if count >= MAX_TARGETS then
 			break
 		end
 		local value = ItemRegistry.baseValue(assetId)
 		local c = Upgrader.chance(inputValue, value)
-		if inputValue > 0 and c <= 0 then
+		if inputValue > 0 and (c <= 0 or (needle == "" and value < minValue)) then
 			continue
 		end
 		local info = ItemRegistry.get(assetId)
@@ -369,7 +374,7 @@ local function UpgraderPage(props)
 		}, {
 			Title = e(Text, {
 				Size = UDim2.new(1, 0, 0, 18),
-				Text = "Target",
+				Text = if inputValue > 0 then `Target  ·  {multiplier}x and up` else "Target",
 				TextSize = 15,
 				display = true,
 			}),
@@ -380,9 +385,36 @@ local function UpgraderPage(props)
 				placeholder = "Search targets...",
 				onChange = setTargetQuery,
 			}),
+			Multipliers = e("Frame", {
+				Position = UDim2.fromOffset(0, 58),
+				Size = UDim2.new(1, 0, 0, 24),
+				BackgroundTransparency = 1,
+			}, (function()
+				local children = {
+					Layout = e("UIListLayout", {
+						FillDirection = Enum.FillDirection.Horizontal,
+						Padding = UDim.new(0, 4),
+						SortOrder = Enum.SortOrder.LayoutOrder,
+					}),
+				}
+				for index, value in MULTIPLIERS do
+					children["X" .. index] = e(Button, {
+						layoutOrder = index,
+						size = UDim2.new(1 / #MULTIPLIERS, -4, 1, 0),
+						text = `{value}x`,
+						textSize = 12,
+						color = if multiplier == value then Theme.colors.accent else nil,
+						sound = "tab",
+						onClick = function()
+							setMultiplier(value)
+						end,
+					})
+				end
+				return children
+			end)()),
 			Items = e(Grid, {
-				position = UDim2.fromOffset(0, 60),
-				size = UDim2.new(1, 0, 1, -60),
+				position = UDim2.fromOffset(0, 88),
+				size = UDim2.new(1, 0, 1, -88),
 				cellSize = UDim2.fromOffset(92, 118),
 				cellPadding = UDim2.fromOffset(5, 5),
 			}, targetTiles),

@@ -1,6 +1,7 @@
 -- Higher or Lower: two items, the right one's value is hidden. guess if it is worth more or less than the left one.
 -- every correct guess in a row pays a bit more (see Shared/Games/HigherLower), up to a daily limit; a wrong guess
--- ends the run. the server picks the items and checks the guesses.
+-- ends the run. the server picks the items and checks the guesses. cards show no rarity colors, since the
+-- rarity would give away roughly what the hidden value is.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -24,7 +25,6 @@ local NEXT_DELAY = 1.1
 
 local function Card(props)
 	local info = ItemRegistry.get(props.assetId)
-	local tier = ItemRegistry.tier(props.assetId)
 	return e("Frame", {
 		AnchorPoint = props.anchorPoint,
 		Position = props.position,
@@ -34,21 +34,6 @@ local function Card(props)
 	}, {
 		Corner = e("UICorner", { CornerRadius = UDim.new(0, 6) }),
 		Stroke = e("UIStroke", { Color = props.strokeColor or Theme.colors.stroke, Thickness = 2 }),
-		Fade = e("Frame", {
-			Size = UDim2.fromScale(1, 1),
-			BackgroundColor3 = tier.color,
-			BorderSizePixel = 0,
-		}, {
-			Corner = e("UICorner", { CornerRadius = UDim.new(0, 6) }),
-			Gradient = e("UIGradient", {
-				Rotation = 90,
-				Transparency = NumberSequence.new({
-					NumberSequenceKeypoint.new(0, 1),
-					NumberSequenceKeypoint.new(0.5, 1),
-					NumberSequenceKeypoint.new(1, 0.7),
-				}),
-			}),
-		}),
 		Thumb = e("ImageLabel", {
 			AnchorPoint = Vector2.new(0.5, 0),
 			Position = UDim2.new(0.5, 0, 0, 16),
