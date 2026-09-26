@@ -10,7 +10,9 @@
 -- fields: curve (odds are value^-curve inside each group, lower = pricier items drop more),
 -- specialChance (combined odds of hitting the hidden special pool, 0.00015 = 1 in 6,667),
 -- specialMinValue (base value at which an item joins the hidden special pool, 20M = the Divine tier),
--- cases (id, name, order, color, series = { series id }, guests = { series theme id }, icon = image asset id?).
+-- cases (id, name, order, color, series = { series id }, guests = { series theme id }, icon = image asset id?,
+-- houseEdge = number? (overrides Config.HouseEdge for this case's price, lower = cheaper; the starter cases use it)).
+-- a case with a lower house edge than Config.HouseEdge shows a Starter tag on the cases page.
 -- caseSeries groups cases into the sections of the cases page (id, name, description, color, cases = { case id }),
 -- in display order. every case must be in exactly one case series.
 -- season cases: set season = n on a case and it can only be opened during that season (Shared/Progress/Seasons,
@@ -84,7 +86,8 @@ return {
 			series = { "gentry2", "neckwear2" }, guests = { "sparkle", "royalty" } },
 		{ id = "tophat", name = "Top Hat Case", color = Color3.fromRGB(135, 135, 160),
 			series = { "gentry3", "shades" }, guests = { "steampunk", "dominion" } },
-		{ id = "eggs", name = "Egg Hunt Case", color = Color3.fromRGB(255, 225, 130),
+		-- starter case: the cheapest, with a smaller house edge so new players lose less while they learn
+		{ id = "eggs", name = "Egg Hunt Case", color = Color3.fromRGB(255, 225, 130), houseEdge = 0.05,
 			series = { "eggs1", "critters1" }, guests = { "sparkle", "royalty" } },
 		{ id = "goldenegg", name = "Golden Egg Case", color = Color3.fromRGB(255, 185, 50),
 			series = { "eggs2", "critters2" }, guests = { "gems", "gentry" } },
@@ -120,7 +123,8 @@ return {
 			series = { "backbling2" }, guests = { "beasts", "elements", "valhalla" } },
 		{ id = "audio", name = "Audio Case", color = Color3.fromRGB(255, 80, 160),
 			series = { "audio", "street1" }, guests = { "shades", "sparkle" } },
-		{ id = "designer", name = "Designer Case", color = Color3.fromRGB(240, 220, 180),
+		-- starter case, like Egg Hunt
+		{ id = "designer", name = "Designer Case", color = Color3.fromRGB(240, 220, 180), houseEdge = 0.05,
 			series = { "designer" }, guests = { "gentry", "royalty", "gems" } },
 		{ id = "streetwear", name = "Streetwear Case", color = Color3.fromRGB(100, 160, 255),
 			series = { "faces3", "street2" }, guests = { "royalty", "hair" } },
