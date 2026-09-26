@@ -12,6 +12,8 @@
 --   PlayerDataService:GetItem(player, uid) -> ItemInstance?
 --   PlayerDataService:RemoveItems(player, uids) -> { ItemInstance } (the ones that existed)
 --   PlayerDataService:SetEquipped(player, uids)
+--   PlayerDataService:TransferItems(from, to, uids) -> { ItemInstance } moves the exact item records to another
+--   player (for trading), so uid, serial, traits, stat tracker count, series and OG owner all carry over
 --   PlayerDataService:UpdateItems(player, uids, mutate) -> { ItemInstance } calls mutate(item) on each owned item,
 --   the ones it returns true for are replicated as changed (used for stat tracker counts)
 --   PlayerDataService:SetSetting(player, id, value) (value must already be cleaned with Settings.clean)
@@ -190,6 +192,22 @@ function PlayerDataService:UpdateItems(player: Player, uids: { string }, mutate:
 		push(player, "update", changed)
 	end
 	return changed
+end
+
+function PlayerDataService:TransferItems(from: Player, to: Player, uids: { string }): { ItemInstance }
+	local toData = dataOf(to)
+	if not toData or not dataOf(from) or from == to then
+		return {}
+	end
+	local moved = self:RemoveItems(from, uids)
+	for _, item in moved do
+		toData.inventory[item.uid] = item
+	end
+	if #moved > 0 then
+		push(to, "update", moved)
+		self.InventoryChanged:Fire(to)
+	end
+	return moved
 end
 
 function PlayerDataService:SetEquipped(player: Player, uids: { string })

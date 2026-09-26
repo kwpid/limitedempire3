@@ -21,7 +21,8 @@ export type OriginalOwner = {
 	name: string,
 }
 
--- rare stat tracker, counts cases opened while the item is equipped.
+-- rare stat tracker, counts cases opened while the item is equipped. belongs to the item, not the owner, so it
+-- carries over through trades. the count is for show only, value uses whether the item has one.
 export type StatTracker = {
 	opens: number,
 }
