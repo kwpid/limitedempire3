@@ -21,6 +21,7 @@ local InventoryPage = require(script.Parent.Pages.InventoryPage)
 local AdminPage = require(script.Parent.Pages.AdminPage)
 local SettingsPage = require(script.Parent.Pages.SettingsPage)
 local CosmeticsPage = require(script.Parent.Pages.CosmeticsPage)
+local DataEditorPage = require(script.Parent.Pages.DataEditorPage)
 local TabBar = require(script.Parent.Components.TabBar)
 local OpeningOverlay = require(script.Parent.Opening.OpeningOverlay)
 local InspectView = require(script.Parent.Inspect.InspectView)
@@ -39,6 +40,10 @@ local INVENTORY_TABS = {
 	{ id = "items", text = "Items" },
 	{ id = "titles", text = "Titles" },
 	{ id = "nameStyles", text = "Name Styles" },
+}
+local ADMIN_TABS = {
+	{ id = "tools", text = "Tools" },
+	{ id = "data", text = "Player Data" },
 }
 local TAB_HEIGHT = 32
 
@@ -90,6 +95,7 @@ local function App(props)
 	local inspectUid, setInspectUid = React.useState(nil)
 	local busy, setBusy = React.useState(false)
 	local inventoryTab, setInventoryTab = React.useState("items")
+	local adminTab, setAdminTab = React.useState("tools")
 	local autoOpen, setAutoOpen = React.useState(false)
 	local autoRunning, setAutoRunning = React.useState(false)
 	local autoCount, setAutoCount = React.useState(0)
@@ -432,7 +438,32 @@ local function App(props)
 				subtitle = "developer tools",
 				onClose = close,
 			}, {
-				Page = e(AdminPage, { cash = state.cash }),
+				Tabs = e(TabBar, {
+					size = UDim2.new(1, 0, 0, TAB_HEIGHT),
+					tabs = ADMIN_TABS,
+					value = adminTab,
+					onChange = setAdminTab,
+				}),
+				Content = e("Frame", {
+					Position = UDim2.fromOffset(0, TAB_HEIGHT + 10),
+					Size = UDim2.new(1, 0, 1, -(TAB_HEIGHT + 10)),
+					BackgroundTransparency = 1,
+				}, {
+					Tools = e("Frame", {
+						Size = UDim2.fromScale(1, 1),
+						BackgroundTransparency = 1,
+						Visible = adminTab == "tools",
+					}, {
+						Page = e(AdminPage, { cash = state.cash }),
+					}),
+					Data = e("Frame", {
+						Size = UDim2.fromScale(1, 1),
+						BackgroundTransparency = 1,
+						Visible = adminTab == "data",
+					}, {
+						Page = e(DataEditorPage),
+					}),
+				}),
 			})
 			else nil,
 	}

@@ -5,6 +5,8 @@
 -- roblox's default name tags are turned off on spawn, the client overhead ui replaces them.
 -- a worn face tags the head instead with LE_DecalOnly = true. accessories are matched to items through
 -- AccessoryDescription.Instance when available, otherwise by mesh id / name against ItemModelService models.
+-- custom items (ItemRegistry.isCustom) are not catalog items, so they are cloned from their real Accessory and
+-- added after the description is applied (tagged LE_CustomWorn so the next refresh can swap them out).
 --
 -- api: AvatarService:SetEquipped(player, uids) -> { ok, err? }, AvatarService:Refresh(player), AvatarService:Spawn(player)
 -- client calls it through Net.functions.SetEquipped:InvokeServer({ uid, ... }).
@@ -23,6 +25,7 @@ local ItemModelService = require(script.Parent.ItemModelService)
 local PlayerDataService = require(script.Parent.PlayerDataService)
 
 local WORN_TAG = "LE_WornItem"
+local CUSTOM_TAG = "LE_CustomWorn"
 local DATA_WAIT = 10
 
 local AvatarService = {}
@@ -64,6 +67,9 @@ local function buildDescription(player: Player, items: { Types.ItemInstance }): 
 	local present = {}
 
 	for _, item in items do
+		if ItemRegistry.isCustom(item.assetId) then
+			continue
+		end
 		if ItemRegistry.isFace(item.assetId) then
 			description.Face = item.assetId
 			description.Head = 0
@@ -146,8 +152,21 @@ local function decorate(humanoid: Humanoid, items: { Types.ItemInstance })
 	end
 
 	local pending: { [number]: Types.ItemInstance } = {}
+	local matched: { [Accessory]: Types.ItemInstance } = {}
+	for _, accessory in character:GetChildren() do
+		if accessory:IsA("Accessory") and CollectionService:HasTag(accessory, CUSTOM_TAG) then
+			accessory:Destroy()
+		end
+	end
 	for _, item in items do
-		if ItemRegistry.isFace(item.assetId) then
+		if ItemRegistry.isCustom(item.assetId) then
+			local accessory = ItemModelService:GetAccessory(item.assetId)
+			if accessory then
+				CollectionService:AddTag(accessory, CUSTOM_TAG)
+				humanoid:AddAccessory(accessory)
+				matched[accessory] = item
+			end
+		elseif ItemRegistry.isFace(item.assetId) then
 			local head = character:FindFirstChild("Head")
 			if head then
 				markWorn(head, item, true)
@@ -157,7 +176,6 @@ local function decorate(humanoid: Humanoid, items: { Types.ItemInstance })
 		end
 	end
 
-	local matched: { [Accessory]: Types.ItemInstance } = {}
 	matchByDescription(humanoid, pending, matched)
 	if next(pending) then
 		matchByMesh(humanoid, pending, matched)

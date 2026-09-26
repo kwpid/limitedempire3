@@ -1,9 +1,13 @@
 -- read-only lookup over the generated ItemData, plus helpers for equipping and thumbnails.
--- api: ItemRegistry.all() -> the whole ItemData table (read only), ItemRegistry.get(assetId), .baseValue(assetId), .tier(assetId), .accessoryType(assetId),
+-- custom (hand made) items from CustomItems are looked up the same way as ItemData items, but all() only lists
+-- the generated ItemData limiteds (what series and cases are built from).
+-- api: ItemRegistry.all() -> the whole ItemData table (read only), ItemRegistry.custom() -> CustomItems table,
+-- ItemRegistry.isCustom(assetId), ItemRegistry.get(assetId), .baseValue(assetId), .tier(assetId), .accessoryType(assetId),
 -- .isFace(assetId), .isEquippable(assetId), .kind(assetId) -> "Hat" | "Hair" | "Face" | "FaceDecal" | "Neck" | ... or nil,
 -- .thumbnail(assetId, size?)
 
 local ItemData = require(script.Parent.ItemData)
+local CustomItems = require(script.Parent.CustomItems)
 local Tiers = require(script.Parent.Tiers)
 
 export type ItemInfo = {
@@ -14,6 +18,7 @@ export type ItemInfo = {
 	valued: boolean,
 	assetType: number,
 	year: number,
+	custom: boolean?,
 }
 
 local ACCESSORY_TYPES: { [number]: Enum.AccessoryType } = {
@@ -41,18 +46,32 @@ local KINDS: { [number]: string } = {
 	[FACE_ASSET_TYPE] = "FaceDecal",
 }
 
+local ITEMS: { [number]: ItemInfo } = table.clone(ItemData)
+for assetId, info in CustomItems do
+	assert(not ITEMS[assetId], `custom item {assetId} is already in ItemData`)
+	ITEMS[assetId] = info
+end
+
 local ItemRegistry = {}
 
 function ItemRegistry.all(): { [number]: ItemInfo }
 	return ItemData
 end
 
+function ItemRegistry.custom(): { [number]: ItemInfo }
+	return CustomItems
+end
+
+function ItemRegistry.isCustom(assetId: number): boolean
+	return CustomItems[assetId] ~= nil
+end
+
 function ItemRegistry.get(assetId: number): ItemInfo?
-	return ItemData[assetId]
+	return ITEMS[assetId]
 end
 
 function ItemRegistry.baseValue(assetId: number): number
-	local info = ItemData[assetId]
+	local info = ITEMS[assetId]
 	return info and info.value or 0
 end
 
@@ -61,12 +80,12 @@ function ItemRegistry.tier(assetId: number): Tiers.Tier
 end
 
 function ItemRegistry.accessoryType(assetId: number): Enum.AccessoryType?
-	local info = ItemData[assetId]
+	local info = ITEMS[assetId]
 	return info and ACCESSORY_TYPES[info.assetType]
 end
 
 function ItemRegistry.isFace(assetId: number): boolean
-	local info = ItemData[assetId]
+	local info = ITEMS[assetId]
 	return info ~= nil and info.assetType == FACE_ASSET_TYPE
 end
 
@@ -75,7 +94,7 @@ function ItemRegistry.isEquippable(assetId: number): boolean
 end
 
 function ItemRegistry.kind(assetId: number): string?
-	local info = ItemData[assetId]
+	local info = ITEMS[assetId]
 	return info and KINDS[info.assetType]
 end
 

@@ -213,7 +213,9 @@ local function ItemDetails(props)
 		Series = e(Row, {
 			layoutOrder = 14,
 			label = "Series",
-			value = SeriesRegistry.name(CaseRegistry.itemSeries(item)),
+			value = if ItemRegistry.isCustom(item.assetId)
+				then "Exclusive"
+				else SeriesRegistry.name(CaseRegistry.itemSeries(item)),
 		}),
 		Owner = e(Row, {
 			layoutOrder = 15,

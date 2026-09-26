@@ -124,16 +124,8 @@ end
 
 function CosmeticService:Init()
 	PlayerDataService.Loaded:Connect(publish)
-	-- a data wipe resets cosmetics too, keep the attributes in step
-	PlayerDataService.InventoryChanged:Connect(function(player)
-		for kindId, kind in KINDS do
-			local saved = PlayerDataService:GetCosmetics(player, kindId).equipped or kind.default
-			if player:GetAttribute(kind.attribute) ~= saved then
-				publish(player)
-				return
-			end
-		end
-	end)
+	-- data wipes and the admin data editor change cosmetics too, keep the attributes in step
+	PlayerDataService.InventoryChanged:Connect(publish)
 	-- IsAdmin can arrive after Loaded, and Loaded can fire before this Init connects (services start in no fixed
 	-- order), so publish again on both
 	local function watch(player: Player)

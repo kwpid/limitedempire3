@@ -4,7 +4,8 @@
 -- ItemFactory.rollTier(caseId, tierId, luck?) -> assetId (a normal roll if the case has nothing of that tier),
 -- ItemFactory.create(assetId, caseId?, luck?, owner?, override?) -> ItemInstance (yields for the serial, owner is
 -- the player recorded as the original owner), ItemFactory.fromCase(caseId, luck?, owner?) -> ItemInstance
--- override (admin testing, see AdminService): { traits = { id }?, tracker = true?, condition = band id? }
+-- override (admin tools, see AdminService / DataEditor): { traits = { id }?, tracker = boolean?, condition = band
+-- id?, float = number?, serial = number? }. tracker true forces one, false forces none, nil rolls as normal.
 
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -41,15 +42,18 @@ end
 
 function ItemFactory.create(assetId: number, caseId: string?, luck: number?, owner: Player?, override: any?): Types.ItemInstance
 	local traits = if override and override.traits then Traits.of({ traits = override.traits }) else Traits.rollAll(rng, luck)
-	local float = override and override.condition and floatIn(override.condition) or Condition.rollFloat(rng, luck)
-	local tracker = if override and override.tracker then { opens = 0 } else StatTracker.roll(rng)
+	local float = override and (override.float or (override.condition and floatIn(override.condition)))
+		or Condition.rollFloat(rng, luck)
+	local tracker = if override and override.tracker ~= nil
+		then (if override.tracker then { opens = 0 } else nil)
+		else StatTracker.roll(rng)
 	return {
 		uid = HttpService:GenerateGUID(false),
 		assetId = assetId,
 		float = math.floor(float * 1e6) / 1e6,
 		trait = traits[1],
 		traits = if #traits > 0 then traits else nil,
-		serial = SerialService:Next(assetId),
+		serial = override and override.serial or SerialService:Next(assetId),
 		caseId = caseId,
 		obtainedAt = os.time(),
 		series = CaseRegistry.seriesFor(caseId, assetId),

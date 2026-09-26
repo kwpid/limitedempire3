@@ -5,7 +5,8 @@
 -- the rolled item right away, the reel covers the build time).
 --
 -- api: ItemModelService:Get(assetId) -> Model? (yields, cached), ItemModelService:Prepare(assetId) (non yielding),
--- ItemModelService.meshKey(part) -> string? (numeric mesh id of a handle, used to match worn accessories to items).
+-- ItemModelService.meshKey(part) -> string? (numeric mesh id of a handle, used to match worn accessories to items),
+-- ItemModelService:GetAccessory(assetId) -> Accessory? (a fresh clone of the real accessory, used for custom items)
 -- built models carry "MeshKey" and "AccessoryName" attributes.
 -- clients ask through Net.functions.RequestItemModel:InvokeServer(assetId) -> boolean
 
@@ -184,6 +185,31 @@ function ItemModelService:Get(assetId: number): Model?
 		task.spawn(thread)
 	end
 	return if ok then model else nil
+end
+
+-- full Accessory for custom items (AvatarService wears these directly, the catalog based HumanoidDescription can't
+-- load off sale uploads). loaded once with InsertService and kept in memory, callers get a clone. yields.
+local accessoryTemplates: { [number]: Accessory | false } = {}
+
+function ItemModelService:GetAccessory(assetId: number): Accessory?
+	local template = accessoryTemplates[assetId]
+	if template == nil then
+		local ok, loaded = pcall(InsertService.LoadAsset, InsertService, assetId)
+		local accessory = ok and loaded and loaded:FindFirstChildWhichIsA("Accessory", true)
+		if accessory then
+			accessory.Parent = nil
+			loaded:Destroy()
+			template = accessory :: Accessory
+		else
+			if ok and loaded then
+				loaded:Destroy()
+			end
+			warn(`[ItemModelService] could not load accessory {assetId}: {if ok then "no accessory in asset" else loaded}`)
+			template = false
+		end
+		accessoryTemplates[assetId] = template
+	end
+	return if template then template:Clone() else nil
 end
 
 function ItemModelService:Prepare(assetId: number)

@@ -22,6 +22,11 @@
 --   PlayerDataService:GetCosmetics(player, kind) -> { equipped, unlocked } (titles and name styles, saved
 --   unlocks only, CosmeticService adds role grants), :SetEquippedCosmetic(player, kind, id),
 --   :UnlockCosmetic(player, kind, id)
+--   PlayerDataService:ViewUser(userId) -> (data?, where) and PlayerDataService:EditUser(userId, mutate) -> (ok, err?)
+--   are for the admin data editor. they work on the live data when the player is in this server ("here"), on
+--   the saved profile when they are offline ("offline", saved with ProfileStore SetAsync) and refuse to edit when
+--   the player is in another server ("elsewhere", that server's session would overwrite the change).
+--   where can also be "none" (never played) or "error" (datastore failed).
 --   PlayerDataService:Reset(player) (wipes the player back to the template, used by the admin panel)
 --   PlayerDataService.Loaded (signal: player), PlayerDataService.EquippedChanged (signal: player, uids),
 --   PlayerDataService.InventoryChanged (signal: player) fires after items are added, removed or wiped
@@ -295,6 +300,76 @@ function PlayerDataService:UnlockCosmetic(player: Player, kind: string, id: stri
 	if not table.find(entry.unlocked, id) then
 		table.insert(entry.unlocked, id)
 	end
+end
+
+local function loadedPlayer(userId: number): Player?
+	local player = Players:GetPlayerByUserId(userId)
+	return if player and profiles[player] then player else nil
+end
+
+local function dropMissingEquipped(data: SavedData)
+	local kept = {}
+	for _, uid in data.equipped do
+		if data.inventory[uid] then
+			table.insert(kept, uid)
+		end
+	end
+	data.equipped = kept
+end
+
+function PlayerDataService:ViewUser(userId: number): (SavedData?, string)
+	local player = loadedPlayer(userId)
+	if player then
+		return dataOf(player), "here"
+	end
+	local ok, profile = pcall(store.GetAsync, store, tostring(userId))
+	if not ok then
+		warn(`[PlayerDataService] could not view {userId}: {profile}`)
+		return nil, "error"
+	end
+	if not profile then
+		return nil, "none"
+	end
+	profile:Reconcile()
+	return profile.Data, if profile.Session then "elsewhere" else "offline"
+end
+
+function PlayerDataService:EditUser(userId: number, mutate: (SavedData) -> ()): (boolean, string?)
+	local player = loadedPlayer(userId)
+	if player then
+		local data = dataOf(player) :: SavedData
+		mutate(data)
+		dropMissingEquipped(data)
+		push(player, "replace", {
+			cash = data.cash,
+			inventory = data.inventory,
+			equipped = data.equipped,
+			settings = data.settings,
+			stats = data.stats,
+		})
+		self.InventoryChanged:Fire(player)
+		self.EquippedChanged:Fire(player, data.equipped)
+		return true
+	end
+
+	local ok, profile = pcall(store.GetAsync, store, tostring(userId))
+	if not ok then
+		return false, "Datastore error, try again"
+	end
+	if not profile then
+		return false, "No saved data for that user"
+	end
+	if profile.Session then
+		return false, "That player is in another server, edit them there or after they leave"
+	end
+	profile:Reconcile()
+	mutate(profile.Data)
+	dropMissingEquipped(profile.Data)
+	local saved, err = pcall(profile.SetAsync, profile)
+	if not saved then
+		return false, `Save failed: {err}`
+	end
+	return true
 end
 
 function PlayerDataService:Reset(player: Player)

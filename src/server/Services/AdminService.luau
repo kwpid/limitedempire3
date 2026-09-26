@@ -15,12 +15,17 @@
 --   "setOverride" { traits = { id }?, tracker = bool?, condition = band id?, tier = tier id?, count }
 --                         your next `count` unboxes get these (count -1 = until cleared, 0 clears). mirrored to
 --                         the "AdminOverride" attribute (json) so the panel can show what is armed
+--   data editor (see Modules/DataEditor, all return a fresh snapshot of the player):
+--   "dataLoad" { userId }, "dataAddItems" { userId, assetId, count?, traits?, float?, serial?, tracker? },
+--   "dataEditItem" { userId, uid, traits?, float?, serial?, tracker? }, "dataRemoveItems" { userId, uids },
+--   "dataSetCash" { userId, amount }, "dataCosmetic" { userId, kind, id, unlocked }
 -- to add an action, add a handler to ACTIONS below.
 
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 local Shared = ReplicatedStorage.Shared
 local Net = require(Shared.Net)
@@ -30,6 +35,7 @@ local Tiers = require(Shared.Items.Tiers)
 local Traits = require(Shared.Modifiers.Traits)
 local LuckService = require(script.Parent.LuckService)
 local CosmeticService = require(script.Parent.CosmeticService)
+local DataEditor = require(ServerScriptService.Server.Modules.DataEditor)
 local SerialService = require(script.Parent.SerialService)
 local PlayerDataService = require(script.Parent.PlayerDataService)
 
@@ -163,6 +169,42 @@ local ACTIONS: { [string]: (Player, any) -> Types.Result<any> } = {
 		overrides[player] = override
 		publishOverride(player)
 		return { ok = true }
+	end,
+
+	dataLoad = function(_, payload)
+		return DataEditor.snapshot(type(payload) == "table" and payload.userId)
+	end,
+
+	dataAddItems = function(_, payload)
+		return DataEditor.addItems(type(payload) == "table" and payload.userId, payload)
+	end,
+
+	dataEditItem = function(_, payload)
+		if type(payload) ~= "table" then
+			return { ok = false, err = "Invalid request" }
+		end
+		return DataEditor.editItem(payload.userId, payload.uid, payload)
+	end,
+
+	dataRemoveItems = function(_, payload)
+		if type(payload) ~= "table" then
+			return { ok = false, err = "Invalid request" }
+		end
+		return DataEditor.removeItems(payload.userId, payload.uids)
+	end,
+
+	dataSetCash = function(_, payload)
+		if type(payload) ~= "table" then
+			return { ok = false, err = "Invalid request" }
+		end
+		return DataEditor.setCash(payload.userId, payload.amount)
+	end,
+
+	dataCosmetic = function(_, payload)
+		if type(payload) ~= "table" then
+			return { ok = false, err = "Invalid request" }
+		end
+		return DataEditor.setCosmetic(payload.userId, payload.kind, payload.id, payload.unlocked)
 	end,
 
 	setLuck = function(player, payload)

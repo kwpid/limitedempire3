@@ -316,7 +316,9 @@ local function InspectView(props)
 					Series = e(Row, {
 						layoutOrder = 5,
 						label = "Series",
-						value = SeriesRegistry.name(CaseRegistry.itemSeries(item)),
+						value = if ItemRegistry.isCustom(item.assetId)
+							then "Exclusive"
+							else SeriesRegistry.name(CaseRegistry.itemSeries(item)),
 					}),
 					Owner = e(Row, {
 						layoutOrder = 6,
