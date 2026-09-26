@@ -1,5 +1,9 @@
--- item condition, driven by a float from 0 to 1 (lower is better). each band has a value multiplier and an avatar tint.
--- api: Condition.list, Condition.fromFloat(f) -> band, Condition.rollFloat(rng, luck?) -> number,
+-- item condition, driven by a float from 0 to 1 (lower is better). bands give the name, color and avatar tint.
+-- value follows the float smoothly (Condition.multiplier): anywhere in Clean is exactly the base value, every bit
+-- better than Clean adds value (up to x1.6 at a perfect 0.000000) and every bit worse slowly takes some away (down
+-- to x0.6 at 1.0). the band multipliers below are only rough labels for that curve.
+-- api: Condition.list, Condition.fromFloat(f) -> band, Condition.multiplier(f) -> number,
+-- Condition.rollFloat(rng, luck?) -> number,
 -- Condition.expectedMultiplier() -> average multiplier across all floats (used for case pricing)
 
 export type Band = {
@@ -46,10 +50,26 @@ function Condition.rollFloat(rng: Random, luck: number?): number
 	return math.floor(u * 1e6) / 1e6
 end
 
-local expected = 0
-for _, band in LIST do
-	expected += (band.max - band.min) * band.multiplier
+local CLEAN_MIN, CLEAN_MAX = 0.12, 0.35
+local BEST_BONUS, BEST_CURVE = 0.6, 1.5
+local WORST_LOSS, WORST_CURVE = 0.4, 1.3
+
+function Condition.multiplier(f: number): number
+	if f < CLEAN_MIN then
+		return 1 + BEST_BONUS * ((CLEAN_MIN - math.max(f, 0)) / CLEAN_MIN) ^ BEST_CURVE
+	elseif f > CLEAN_MAX then
+		return 1 - WORST_LOSS * ((math.min(f, 1) - CLEAN_MAX) / (1 - CLEAN_MAX)) ^ WORST_CURVE
+	end
+	return 1
 end
+
+-- average over a uniform float (normal luck), used for case pricing
+local expected = 0
+local STEPS = 10000
+for i = 0, STEPS - 1 do
+	expected += Condition.multiplier((i + 0.5) / STEPS)
+end
+expected /= STEPS
 
 function Condition.expectedMultiplier(): number
 	return expected

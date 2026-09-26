@@ -24,6 +24,7 @@ local CosmeticsPage = require(script.Parent.Pages.CosmeticsPage)
 local DataEditorPage = require(script.Parent.Pages.DataEditorPage)
 local TabBar = require(script.Parent.Components.TabBar)
 local OpeningOverlay = require(script.Parent.Opening.OpeningOverlay)
+local RareReveal = require(script.Parent.Opening.RareReveal)
 local InspectView = require(script.Parent.Inspect.InspectView)
 local usePlayerState = require(script.Parent.Hooks.usePlayerState)
 local useIsAdmin = require(script.Parent.Hooks.useIsAdmin)
@@ -63,6 +64,12 @@ local function playReveal(item)
 	else
 		Sfx.play("reveal")
 	end
+end
+
+-- Exotic and Divine unboxes get the RareReveal cutscene (it plays its own sounds) before the item is shown
+local function hasCutscene(item): boolean
+	local tier = ItemRegistry.tier(item.assetId)
+	return tier.id == "exotic" or tier.id == "divine"
 end
 
 local function sellConfirm(value: number)
@@ -174,7 +181,9 @@ local function App(props)
 	-- the ref keeps the delayed call on the latest render so it sees fresh cash and busy state.
 	local openCaseRef = React.useRef(openCase)
 	openCaseRef.current = openCase
-	local autoWaitingOn = if autoRunning and opening and opening.revealed then opening.key else nil
+	local autoWaitingOn = if autoRunning and opening and opening.revealed and not opening.cutscene
+		then opening.key
+		else nil
 	React.useEffect(function()
 		if not autoWaitingOn then
 			return nil
@@ -238,11 +247,29 @@ local function App(props)
 			onRevealed = function()
 				Perf.note("reveal")
 				Perf.measureNextFrame("reveal first frame")
-				playReveal(opening.item)
+				local cutscene = hasCutscene(opening.item)
+				if not cutscene then
+					playReveal(opening.item)
+				end
 				setOpening(function(current)
 					if current and current.key == opening.key then
 						local nextOpening = table.clone(current)
 						nextOpening.revealed = true
+						nextOpening.cutscene = cutscene
+						return nextOpening
+					end
+					return current
+				end)
+			end,
+		})
+	elseif opening and opening.cutscene and opening.item then
+		focusContent = e(RareReveal, {
+			item = opening.item,
+			onDone = function()
+				setOpening(function(current)
+					if current and current.key == opening.key then
+						local nextOpening = table.clone(current)
+						nextOpening.cutscene = false
 						return nextOpening
 					end
 					return current
@@ -494,7 +521,7 @@ local function App(props)
 	}
 	if focusContent then
 		local contentKey = if opening
-			then `Opening{opening.key}{opening.revealed and "Reveal" or "Reel"}`
+			then `Opening{opening.key}{if opening.cutscene then "Cutscene" elseif opening.revealed then "Reveal" else "Reel"}`
 			else `Inspect{inspectUid}`
 		focusChildren[contentKey] = focusContent
 	end

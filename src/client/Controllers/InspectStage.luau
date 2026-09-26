@@ -29,6 +29,8 @@ local ROOM_ORIGIN = Vector3.new(6000, 9000, 6000)
 local ROOM_SIZE = 300
 local ROOM_COLOR = Color3.fromRGB(16, 18, 22)
 local FOCUS_BLUR_NAME = "LE_FocusBlur"
+local DROP_TIME = 0.55
+local DROP_HEIGHT = 1.3
 
 type Slot = {
 	item: Types.ItemInstance,
@@ -43,6 +45,7 @@ type Slot = {
 	zoom: number,
 	idle: number,
 	connection: RBXScriptConnection?,
+	dropStart: number?,
 }
 
 type Stage = {
@@ -184,9 +187,29 @@ local function setControlsEnabled(enabled: boolean)
 	end)
 end
 
+-- the item drops in from above when it is first shown, with a small bounce at the end
+local function dropOffset(s: Slot): number
+	if not s.dropStart then
+		return 0
+	end
+	local t = math.clamp((os.clock() - s.dropStart) / DROP_TIME, 0, 1)
+	if t >= 1 then
+		s.dropStart = nil
+		return 0
+	end
+	local fall = (1 - t) ^ 3
+	local bounce = math.sin(t * math.pi) * 0.08 * (1 - t)
+	return s.extent * (DROP_HEIGHT * fall - bounce)
+end
+
 local function place(s: Slot)
 	if s.model then
-		s.model:PivotTo(CFrame.new(ROOM_ORIGIN) * CFrame.Angles(s.pitch, 0, 0) * CFrame.Angles(0, s.yaw, 0))
+		local offset = dropOffset(s)
+		s.model:PivotTo(
+			CFrame.new(ROOM_ORIGIN + Vector3.new(0, offset, 0))
+				* CFrame.Angles(s.pitch, 0, 0)
+				* CFrame.Angles(0, s.yaw + offset * 0.4, 0)
+		)
 	end
 	if s.shown then
 		local distance = s.extent * 1.9 * s.zoom
@@ -318,6 +341,7 @@ function InspectStage.show(item: Types.ItemInstance): boolean
 	Perf.report("inspect model ready", os.clock() - started)
 
 	st.placeholder.ImageTransparency = 1
+	s.dropStart = os.clock()
 	return true
 end
 

@@ -23,7 +23,7 @@ export type Breakdown = {
 
 function Valuation.breakdown(item: Types.ItemInstance): Breakdown
 	local base = ItemRegistry.baseValue(item.assetId)
-	local condition = Condition.fromFloat(item.float).multiplier
+	local condition = Condition.multiplier(item.float)
 	local trait = Traits.combinedMultiplier(Traits.of(item))
 	local serial = Serial.multiplier(item.serial)
 	local tracker = StatTracker.multiplier(item.tracker)

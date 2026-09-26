@@ -1,4 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local React = require(ReplicatedStorage.Packages.React)
@@ -24,6 +25,14 @@ local e = React.createElement
 
 local BAR_HEIGHT = 70
 local CARD_WIDTH = 340
+-- the stats card slides in a moment after the item lands, and the value counts up
+local STATS_DELAY = 0.45
+local STATS_TIME = 0.4
+local COUNT_TIME = 0.7
+
+local function easeOut(t: number): number
+	return 1 - (1 - t) ^ 3
+end
 
 local function Row(props)
 	return e("Frame", {
@@ -59,6 +68,25 @@ end
 local function InspectView(props)
 	local item = props.item
 	local status, setStatus = React.useState("loading")
+	local statsTime, setStatsTime = React.useBinding(-1)
+
+	React.useEffect(function()
+		if status == "loading" then
+			return nil
+		end
+		local start = os.clock() + STATS_DELAY
+		local connection
+		connection = RunService.RenderStepped:Connect(function()
+			local elapsed = os.clock() - start
+			setStatsTime(elapsed)
+			if elapsed > COUNT_TIME then
+				connection:Disconnect()
+			end
+		end)
+		return function()
+			connection:Disconnect()
+		end
+	end, { status })
 	local dragging = React.useRef(false)
 	local lastPosition = React.useRef(nil)
 
@@ -218,7 +246,10 @@ local function InspectView(props)
 		}),
 		Card = e("Frame", {
 			AnchorPoint = Vector2.new(0, 1),
-			Position = UDim2.new(0, 40, 1, -(BAR_HEIGHT + 20)),
+			Position = statsTime:map(function(elapsed)
+				local p = easeOut(math.clamp(elapsed / STATS_TIME, 0, 1))
+				return UDim2.new(0, 40 - (CARD_WIDTH + 80) * (1 - p), 1, -(BAR_HEIGHT + 20))
+			end),
 			Size = UDim2.fromOffset(CARD_WIDTH, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
 			BackgroundColor3 = Theme.colors.topbar,
@@ -268,7 +299,10 @@ local function InspectView(props)
 				Value = e(Text, {
 					LayoutOrder = 2,
 					Size = UDim2.new(1, 0, 0, 34),
-					Text = Format.cash(breakdown.total),
+					Text = statsTime:map(function(elapsed)
+						local p = easeOut(math.clamp(elapsed / COUNT_TIME, 0, 1))
+						return Format.cash(math.floor(breakdown.total * p))
+					end),
 					TextSize = 34,
 					TextColor3 = Theme.colors.cash,
 					display = true,
