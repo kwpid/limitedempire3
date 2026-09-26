@@ -22,6 +22,8 @@ local e = React.createElement
 
 local HISTORY_HEIGHT = 56
 local GAP = 8
+-- tiles are placed by hand instead of with a UIGridLayout: a grid whose cells and gaps fill the board exactly can
+-- round a tile onto an extra row that hangs below the board
 local PRESETS = { 1, 3, 5, 10, 24 }
 local GEM = Color3.fromRGB(90, 200, 140)
 local MINE = Color3.fromRGB(220, 80, 70)
@@ -49,8 +51,12 @@ local function Tile(props)
 		color = Theme.colors.panelLight:Lerp(Color3.new(1, 1, 1), 0.12)
 	end
 	local symbol = if state == "gem" or state == "safe" then "💎" elseif state == "mine" or state == "boom" then "💣" else ""
+	local column = (props.tile - 1) % Mines.SIDE
+	local row = (props.tile - 1) // Mines.SIDE
+	local share = GAP * (Mines.SIDE - 1) / Mines.SIDE
 	return e("TextButton", {
-		LayoutOrder = props.tile,
+		Position = UDim2.new(column / Mines.SIDE, column * GAP / Mines.SIDE, row / Mines.SIDE, row * GAP / Mines.SIDE),
+		Size = UDim2.new(1 / Mines.SIDE, -share, 1 / Mines.SIDE, -share),
 		BackgroundColor3 = color,
 		BorderSizePixel = 0,
 		AutoButtonColor = false,
@@ -207,13 +213,7 @@ local function MinesPage(props)
 		end)
 	end
 
-	local tiles = {
-		Layout = e("UIGridLayout", {
-			CellSize = UDim2.new(1 / Mines.SIDE, -GAP * (Mines.SIDE - 1) / Mines.SIDE, 1 / Mines.SIDE, -GAP * (Mines.SIDE - 1) / Mines.SIDE),
-			CellPadding = UDim2.fromOffset(GAP, GAP),
-			SortOrder = Enum.SortOrder.LayoutOrder,
-		}),
-	}
+	local tiles = {}
 	for tile = 1, Mines.TILES do
 		local state = "hidden"
 		if round then
@@ -377,10 +377,14 @@ local function MinesPage(props)
 			Board = e("Frame", {
 				AnchorPoint = Vector2.new(0.5, 0),
 				Position = UDim2.fromScale(0.5, 0),
-				Size = UDim2.new(1, 0, 1, -(HISTORY_HEIGHT + 44)),
+				-- the space above the status line and recent results; the board is the biggest square that fits in it
+				Size = UDim2.new(1, 0, 1, -(HISTORY_HEIGHT + 48)),
 				BackgroundTransparency = 1,
 			}, {
-				Square = e("UIAspectRatioConstraint", { AspectRatio = 1 }),
+				Square = e("UIAspectRatioConstraint", {
+					AspectRatio = 1,
+					AspectType = Enum.AspectType.FitWithinMaxSize,
+				}),
 				Grid = e("Frame", {
 					Size = UDim2.fromScale(1, 1),
 					BackgroundTransparency = 1,
