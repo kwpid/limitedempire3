@@ -7,7 +7,6 @@ local Text = require(script.Parent.Parent.Components.Text)
 local Reel = require(script.Parent.Reel)
 local Sfx = require(script.Parent.Parent.Parent.Controllers.Sfx)
 local InspectStage = require(script.Parent.Parent.Parent.Controllers.InspectStage)
-local useViewportScale = require(script.Parent.Parent.Hooks.useViewportScale)
 
 local e = React.createElement
 
@@ -15,7 +14,6 @@ local REEL_WIDTH = 900
 local REVEAL_DELAY = 0.25
 
 local function OpeningOverlay(props)
-	local scale = useViewportScale(Vector2.new(REEL_WIDTH + 80, 400))
 	local finished, setFinished = React.useState(false)
 	local case = CaseRegistry.get(props.caseId)
 
@@ -54,7 +52,6 @@ local function OpeningOverlay(props)
 			Size = UDim2.fromOffset(REEL_WIDTH, 260),
 			BackgroundTransparency = 1,
 		}, {
-			Scale = e("UIScale", { Scale = scale }),
 			Caption = e(Text, {
 				Size = UDim2.new(1, 0, 0, 20),
 				Text = "Unlocking",

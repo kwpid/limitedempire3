@@ -21,7 +21,8 @@ local LUCK_SIZE = 15
 
 local DISPLAY_FONT = Theme.display(Enum.FontWeight.Medium)
 
-local function Wallet()
+-- props: compact? (phones: sits in the top left instead of the bottom left, clear of the bottom nav)
+local function Wallet(props)
 	local state = usePlayerState()
 	local luck = usePlayerAttribute("Luck")
 	local showLuck = type(luck) == "number" and luck ~= 1
@@ -34,8 +35,8 @@ local function Wallet()
 	local cardWidth = math.max(amountWidth, labelWidth, 90) + PAD_X * 2
 
 	return e("Frame", {
-		AnchorPoint = Vector2.new(0, 1),
-		Position = UDim2.new(0, 16, 1, -14),
+		AnchorPoint = if props.compact then Vector2.new(0, 0) else Vector2.new(0, 1),
+		Position = if props.compact then UDim2.fromOffset(16, 12) else UDim2.new(0, 16, 1, -14),
 		Size = UDim2.fromOffset(STRIP_WIDTH + cardWidth, CARD_HEIGHT + LUCK_HEIGHT + 6),
 		BackgroundTransparency = 1,
 		ZIndex = 5,

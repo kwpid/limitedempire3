@@ -5,6 +5,7 @@
 -- Inspect button, so players can check floats, serials and traits before trading instead of trusting a name.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local React = require(ReplicatedStorage.Packages.React)
 local Shared = ReplicatedStorage.Shared
@@ -26,6 +27,11 @@ local CARD_GAP = 8
 local CLOSE_DELAY = 0.15
 -- a frame of this size lets the layer turn absolute (scaled) positions back into its own units
 local UNIT = 100
+
+-- touch screens have no hover: tapping an item shows its card, which then needs its own close button
+local function touchOnly(): boolean
+	return UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+end
 
 local HoverContext = React.createContext(nil)
 
@@ -61,16 +67,29 @@ local function Card(props)
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
 		Details = e(ItemDetails, { item = props.item, thumbnailSize = 70, layoutOrder = 1 }),
-		Inspect = e(Button, {
-			layoutOrder = 2,
-			size = UDim2.new(1, 0, 0, 32),
-			text = "Inspect",
-			textSize = 15,
-			color = Theme.colors.accent,
-			onClick = function()
-				hover.hide()
-				props.onInspect(props.item)
-			end,
+		Buttons = e("Frame", {
+			LayoutOrder = 2,
+			Size = UDim2.new(1, 0, 0, 36),
+			BackgroundTransparency = 1,
+		}, {
+			Inspect = e(Button, {
+				size = UDim2.new(1, if touchOnly() then -84 else 0, 1, 0),
+				text = "Inspect",
+				textSize = 15,
+				color = Theme.colors.accent,
+				onClick = function()
+					hover.hide()
+					props.onInspect(props.item)
+				end,
+			}),
+			Close = touchOnly() and e(Button, {
+				anchorPoint = Vector2.new(1, 0),
+				position = UDim2.fromScale(1, 0),
+				size = UDim2.new(0, 78, 1, 0),
+				text = "Close",
+				textSize = 15,
+				onClick = hover.hide,
+			}) or nil,
 		}),
 	})
 end
@@ -249,9 +268,15 @@ function TradeParts.Tile(props)
 			tagText = band.name,
 			tagColor = band.color,
 			trackerCount = item.tracker and item.tracker.opens or nil,
-			onSelect = props.onSelect or (hover and function()
-				hover.open(item, frameRef.current)
-			end),
+			onSelect = function(uid)
+				if props.onSelect then
+					props.onSelect(uid)
+				end
+				-- without hover, a tap is the only way to see the card (or, with no onSelect, clicking shows it)
+				if hover and (not props.onSelect or touchOnly()) then
+					hover.open(item, frameRef.current)
+				end
+			end,
 		}),
 	})
 end

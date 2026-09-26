@@ -20,6 +20,8 @@ local WearBar = require(script.Parent.Parent.Components.WearBar)
 local TrackerBadge = require(script.Parent.Parent.Components.TrackerBadge)
 local TierGradient = require(script.Parent.Parent.Components.TierGradient)
 local InspectStage = require(script.Parent.Parent.Parent.Controllers.InspectStage)
+local Layout = require(script.Parent.Parent.Layout)
+local useScreen = require(script.Parent.Parent.Hooks.useScreen)
 
 local e = React.createElement
 
@@ -27,6 +29,8 @@ local BAR_HEIGHT = 70
 local CARD_WIDTH = 340
 -- the stats card slides in a moment after the item lands, then its numbers roll up smoothly to their real values
 -- and the wear marker slides from the worn end to the item's float
+-- how much a pinch zooms, in scroll wheel notches per 100% of pinch
+local PINCH_ZOOM = 10
 local STATS_DELAY = 0.45
 local STATS_TIME = 0.4
 local COUNT_START = 0.25
@@ -91,6 +95,13 @@ local function InspectView(props)
 	end, { status })
 	local dragging = React.useRef(false)
 	local lastPosition = React.useRef(nil)
+	-- the touch that started a drag: other fingers (a pinch) don't rotate, or the item would jump between them
+	local dragTouch = React.useRef(nil)
+	local pinching = React.useRef(false)
+	local screen = useScreen()
+	local touchOnly = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+	-- below Roblox's topbar buttons, which sit over the top of this layer
+	local headerTop = math.max(70, Layout.focusTop(screen) + 14)
 
 	React.useLayoutEffect(function()
 		local alive = true
@@ -105,7 +116,11 @@ local function InspectView(props)
 			if not dragging.current then
 				return
 			end
-			if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			local isTouch = input.UserInputType == Enum.UserInputType.Touch
+			if isTouch and (pinching.current or input ~= dragTouch.current) then
+				return
+			end
+			if input.UserInputType == Enum.UserInputType.MouseMovement or isTouch then
 				local position = Vector2.new(input.Position.X, input.Position.Y)
 				local last = lastPosition.current
 				if last then
@@ -116,8 +131,26 @@ local function InspectView(props)
 			end
 		end)
 		local ended = UserInputService.InputEnded:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			local isTouch = input.UserInputType == Enum.UserInputType.Touch
+			if input.UserInputType == Enum.UserInputType.MouseButton1 or (isTouch and input == dragTouch.current) then
 				dragging.current = false
+				lastPosition.current = nil
+				dragTouch.current = nil
+			end
+		end)
+		-- pinch to zoom on touch screens, like the scroll wheel
+		local lastPinch = 1
+		local pinch = UserInputService.TouchPinch:Connect(function(_, scale, _, state)
+			if state == Enum.UserInputState.Begin then
+				pinching.current = true
+				lastPinch = 1
+			elseif state == Enum.UserInputState.Change then
+				if lastPinch > 0 then
+					InspectStage.zoom((scale / lastPinch - 1) * PINCH_ZOOM)
+				end
+				lastPinch = scale
+			else
+				pinching.current = false
 				lastPosition.current = nil
 			end
 		end)
@@ -126,6 +159,7 @@ local function InspectView(props)
 			alive = false
 			moved:Disconnect()
 			ended:Disconnect()
+			pinch:Disconnect()
 			InspectStage.hide()
 		end
 	end, {})
@@ -182,6 +216,7 @@ local function InspectView(props)
 	local hint = if status == "loading"
 		then "Loading item..."
 		elseif status == "failed" then "Preview unavailable for this item"
+		elseif touchOnly then "Drag to rotate   ·   Pinch to zoom"
 		else "Drag to rotate   ·   Scroll to zoom"
 
 	return e("TextButton", {
@@ -190,8 +225,12 @@ local function InspectView(props)
 		AutoButtonColor = false,
 		Text = "",
 		[React.Event.InputBegan] = function(_, input)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			if input.UserInputType == Enum.UserInputType.MouseButton1 then
 				dragging.current = true
+				lastPosition.current = Vector2.new(input.Position.X, input.Position.Y)
+			elseif input.UserInputType == Enum.UserInputType.Touch and not dragTouch.current then
+				dragging.current = true
+				dragTouch.current = input
 				lastPosition.current = Vector2.new(input.Position.X, input.Position.Y)
 			end
 		end,
@@ -202,7 +241,7 @@ local function InspectView(props)
 		end,
 	}, {
 		Header = e("Frame", {
-			Position = UDim2.fromOffset(40, 70),
+			Position = UDim2.fromOffset(40, headerTop),
 			Size = UDim2.new(0.6, 0, 0, 100),
 			BackgroundTransparency = 1,
 			ZIndex = 3,
@@ -246,8 +285,8 @@ local function InspectView(props)
 		}),
 		Close = props.onClose and e(Button, {
 			anchorPoint = Vector2.new(1, 0),
-			position = UDim2.new(1, -24, 0, 70),
-			size = UDim2.fromOffset(44, 36),
+			position = UDim2.new(1, -24, 0, headerTop),
+			size = UDim2.fromOffset(if touchOnly then 56 else 44, if touchOnly then 44 else 36),
 			text = "X",
 			zIndex = 3,
 			onClick = props.onClose,

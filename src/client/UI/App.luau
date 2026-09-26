@@ -35,6 +35,9 @@ local useIsAdmin = require(script.Parent.Hooks.useIsAdmin)
 local useFocusMode = require(script.Parent.Hooks.useFocusMode)
 local useTrades = require(script.Parent.Hooks.useTrades)
 local useTopbarIcon = require(script.Parent.Hooks.useTopbarIcon)
+local useScreen = require(script.Parent.Hooks.useScreen)
+local Layout = require(script.Parent.Layout)
+local ScaledRoot = require(script.Parent.Components.ScaledRoot)
 local Actions = require(script.Parent.Parent.Controllers.Actions)
 local ClientSettings = require(script.Parent.Parent.Controllers.ClientSettings)
 local Notifications = require(script.Parent.Parent.Controllers.Notifications)
@@ -125,6 +128,7 @@ local function App(props)
 	local autoRunning, setAutoRunning = React.useState(false)
 	local autoCount, setAutoCount = React.useState(0)
 	local trades = useTrades()
+	local screen = useScreen()
 	-- the open trade composer: nil, or { counter? } (a new trade or a counter to one)
 	local composing, setComposing = React.useState(nil)
 	-- an item from a trade being inspected (it may not be yours)
@@ -438,11 +442,18 @@ local function App(props)
 	end
 
 	local main = {
-		Wallet = e(Wallet),
-		BottomNav = e(BottomNav, {
-			page = page,
-			onNavigate = navigate,
-			badges = { trades = inboundTrades },
+		-- wallet and bottom nav scale together. on phones a window takes the whole screen, so they hide while one is
+		-- open (its X brings them back) and the wallet moves to the top left, clear of the nav
+		Hud = e(ScaledRoot, {
+			scale = Layout.hudScale(screen),
+			visible = not (screen.compact and page ~= nil),
+		}, {
+			Wallet = e(Wallet, { compact = screen.compact }),
+			BottomNav = e(BottomNav, {
+				page = page,
+				onNavigate = navigate,
+				badges = { trades = inboundTrades },
+			}),
 		}),
 		CasesWindow = e(Window, {
 			visible = page == "cases",
@@ -635,7 +646,7 @@ local function App(props)
 		StopAuto = if autoRunning
 			then e(Button, {
 				anchorPoint = Vector2.new(0.5, 0),
-				position = UDim2.new(0.5, 0, 0, 16),
+				position = UDim2.new(0.5, 0, 0, Layout.focusTop(screen) + 10),
 				size = UDim2.fromOffset(260, 40),
 				text = `Stop auto-open  ·  {autoCount} opened`,
 				textSize = 16,
@@ -652,7 +663,10 @@ local function App(props)
 			else `Inspect{inspectUid}`
 		focusChildren[contentKey] = focusContent
 	end
-	children.Focus = ReactRoblox.createPortal(focusChildren, props.focusGui)
+	-- the focus layer (unboxing, inspect, reveals, toasts) draws in focus units, inside the device safe area
+	children.Focus = ReactRoblox.createPortal({
+		Root = e(ScaledRoot, { scale = Layout.focusScale(screen) }, focusChildren),
+	}, props.focusGui)
 
 	return e("Frame", {
 		Size = UDim2.fromScale(1, 1),

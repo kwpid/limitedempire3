@@ -77,7 +77,8 @@ local function Toasts()
 
 	return e("Frame", {
 		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -16, 1, -16),
+		-- above the bottom nav and the inspect bar
+		Position = UDim2.new(1, -16, 1, -96),
 		Size = UDim2.fromOffset(600, 200),
 		BackgroundTransparency = 1,
 		ZIndex = 20,
