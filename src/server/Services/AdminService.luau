@@ -9,7 +9,7 @@
 --   "addCash" { amount }  adds to your cash (negative removes)
 --   "setCash" { amount }  sets your cash
 --   "setLuck" { amount }  sets your luck multiplier (1 = normal)
---   "setNameStyle" { style } sets your overhead name style (ids from Shared.Visuals.NameStyles)
+--   "setNameStyle" { style } unlocks (for testing) and equips a name style (ids from Shared.Visuals.NameStyles)
 --   "wipeData"            resets your saved data (cash, inventory, equipped) to the template
 --   "wipeAll"             wipeData plus restarts every serial counter at #1 (testing only)
 --   "setOverride" { traits = { id }?, tracker = bool?, condition = band id?, tier = tier id?, count }
@@ -138,6 +138,9 @@ local ACTIONS: { [string]: (Player, any) -> Types.Result<any> } = {
 
 	setNameStyle = function(player, payload)
 		local styleId = type(payload) == "table" and payload.style
+		if type(styleId) == "string" then
+			CosmeticService:Unlock(player, "nameStyle", styleId)
+		end
 		return CosmeticService:Equip(player, "nameStyle", styleId)
 	end,
 

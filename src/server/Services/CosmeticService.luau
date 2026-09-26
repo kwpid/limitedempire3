@@ -1,7 +1,7 @@
 -- titles and name styles: which ones each player owns and which one of each they have equipped.
 -- owned = everything granted to their role (the "grant" field in Shared.Titles / Shared.Visuals.NameStyles) plus
--- whatever was unlocked and saved on them (quests and events later call Unlock). admins own everything so they
--- can test. equipped choices are saved and mirrored to player attributes for every client to render:
+-- whatever was unlocked and saved on them (quests and events later call Unlock). equipped choices are saved and
+-- mirrored to player attributes for every client to render:
 --   "Title" / "NameStyle" (equipped id), "OwnedTitles" / "OwnedNameStyles" (json list of ids)
 -- api: CosmeticService:Owns(player, kind, id) -> boolean, CosmeticService:Owned(player, kind) -> { id },
 -- CosmeticService:Unlock(player, kind, id), CosmeticService:Equip(player, kind, id) -> { ok, err? }
@@ -68,7 +68,7 @@ function CosmeticService:Owns(player: Player, kindId: string, id: any): boolean
 	if not entry then
 		return false
 	end
-	if entry.grant == "everyone" or isAdmin(player) then
+	if entry.grant == "everyone" or (entry.grant == "admin" and isAdmin(player)) then
 		return true
 	end
 	if entry.grant == "moderator" and CosmeticService.MODERATOR_USER_IDS[player.UserId] then
@@ -134,12 +134,29 @@ function CosmeticService:Init()
 			end
 		end
 	end)
-	Players.PlayerAdded:Connect(function(player)
+	-- IsAdmin can arrive after Loaded, and Loaded can fire before this Init connects (services start in no fixed
+	-- order), so publish again on both
+	local function watch(player: Player)
 		player:GetAttributeChangedSignal("IsAdmin"):Connect(function()
 			publish(player)
 		end)
-	end)
+		player.CharacterAdded:Connect(function()
+			if player:GetAttribute("Title") == nil then
+				publish(player)
+			end
+		end)
+	end
+	Players.PlayerAdded:Connect(watch)
+	for _, player in Players:GetPlayers() do
+		watch(player)
+	end
 	Net.functions.SetCosmetic.OnServerInvoke = function(player, kindId, id)
+		function CosmeticService:Start()
+			for _, player in Players:GetPlayers() do
+				publish(player)
+			end
+		end
+
 		return CosmeticService:Equip(player, kindId, id)
 	end
 	for _, player in Players:GetPlayers() do

@@ -1,7 +1,8 @@
 -- name styles for overhead names and chat names, picked in the inventory's Name Styles tab.
 -- a player's style is the "NameStyle" attribute on their Player, only the server sets it (CosmeticService).
--- grant says who has a style without unlocking it ("everyone", "admin", "moderator"), styles without a grant are
--- unlocked through quests and events later and saved on the player. chat can't animate, it uses chatColor.
+-- grant says who has a style without unlocking it ("everyone", "admin", "moderator"). everyone has "default",
+-- every other style has no grant so nobody owns it until it is unlocked (quests and events later, or the admin
+-- panel for testing) and saved on the player. chat can't animate, it uses chatColor.
 -- to add a style, add an entry: color is the base text color, gradient (optional) tints across the name,
 -- animation is "none", "shimmer" (a bright band sweeps across) or "rainbow" (hues scroll), speed scales the animation.
 -- api: NameStyles.get(id?) -> style (falls back to "default"), NameStyles.list (ordered), NameStyles.exists(id)

@@ -47,10 +47,23 @@ end
 function StatTrackerService:Init()
 	PlayerDataService.Loaded:Connect(publish)
 	PlayerDataService.EquippedChanged:Connect(publish)
+	PlayerDataService.InventoryChanged:Connect(publish)
+	-- services start in no fixed order, so Loaded can fire before this Init connects. publishing again when the
+	-- character spawns (and once in Start) makes sure a rejoining player's trackers always show
+	local function watch(player: Player)
+		player.CharacterAdded:Connect(function()
+			publish(player)
+		end)
+	end
+	Players.PlayerAdded:Connect(watch)
 	for _, player in Players:GetPlayers() do
-		if PlayerDataService:Get(player) then
-			task.spawn(publish, player)
-		end
+		watch(player)
+	end
+end
+
+function StatTrackerService:Start()
+	for _, player in Players:GetPlayers() do
+		publish(player)
 	end
 end
 

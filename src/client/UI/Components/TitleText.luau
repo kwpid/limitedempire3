@@ -1,5 +1,5 @@
--- a player title in all caps with its color, and for glow titles a soft colored halo around the letters (two
--- strokes: a wide faint one behind, a thin bright one on the text) that breathes slowly when "animatedText" is on.
+-- a player title in all caps with its color, and for glow titles a subtle colored halo around the letters (a
+-- faint wide stroke behind and a light thin one on the text) that breathes slowly when "animatedText" is on.
 -- renders nothing for "none" unless showNone is set.
 -- props: titleId, textSize (default 14), size, position, anchorPoint, layoutOrder, alignment, showNone, zIndex
 
@@ -54,20 +54,18 @@ local function TitleText(props)
 	if title.glow and title.glowColor then
 		local haloTransparency = if animated
 			then clock:map(function(t)
-				return 0.62 + math.sin(t * 2) * 0.12
+				return 0.8 + math.sin(t * 1.6) * 0.06
 			end)
-			else 0.62
-		children.Halo = e("TextLabel", label({ TextTransparency = 0.55, TextColor3 = Color3.new(1, 1, 1) }), {
-			Gradient = if typeof(title.glowColor) == "ColorSequence"
-				then e("UIGradient", { Color = title.glowColor })
-				else e("UIGradient", { Color = ColorSequence.new(title.glowColor) }),
+			else 0.8
+		-- the halo's text sits right under the real text (a text stroke fades with its text, so it can't be hidden)
+		children.Halo = e("TextLabel", label({}), {
 			Stroke = strokeWith(title.glowColor, {
-				thickness = math.max(2, textSize * 0.22),
+				thickness = math.max(1.5, textSize * 0.14),
 				transparency = haloTransparency,
 			}),
 		})
 		children.Text = e("TextLabel", label({}), {
-			Stroke = strokeWith(title.glowColor, { thickness = 1.2, transparency = 0.25 }),
+			Stroke = strokeWith(title.glowColor, { thickness = 1, transparency = 0.55 }),
 		})
 	else
 		children.Text = e(

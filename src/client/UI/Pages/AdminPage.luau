@@ -21,7 +21,7 @@ local QUICK_AMOUNTS = { 1_000, 10_000, 100_000, 1_000_000, 100_000_000 }
 local QUICK_LUCK = { 1, 2, 5, 10, 50, 100, 1000 }
 local CONFIRM_WINDOW = 3
 local OVERRIDE_COUNTS = { 1, 5, 25, -1 }
-local PAGE_HEIGHT = 640
+local PAGE_HEIGHT = 680
 
 local function parseAmount(text: string): number?
 	local cleaned = text:gsub("[,%s]", ""):lower()
@@ -162,7 +162,7 @@ local function AdminPage(props)
 		traitChips[trait.id] = e(Chip, {
 			layoutOrder = index,
 			text = trait.name,
-			width = 80,
+			width = 96,
 			textSize = 12,
 			active = active,
 			onClick = function()
@@ -389,7 +389,7 @@ local function AdminPage(props)
 		NextUnbox = e(Section, {
 			title = "Next unbox (testing)",
 			position = UDim2.fromOffset(0, 404),
-			size = UDim2.new(1, -10, 0, 226),
+			size = UDim2.new(1, -10, 0, 262),
 		}, {
 			Status = e(Text, {
 				Position = UDim2.fromOffset(0, 26),
@@ -407,42 +407,42 @@ local function AdminPage(props)
 			}),
 			Traits = e("Frame", {
 				Position = UDim2.fromOffset(100, 54),
-				Size = UDim2.new(1, -100, 0, 28),
+				Size = UDim2.new(1, -100, 0, 60),
 				BackgroundTransparency = 1,
 			}, chipRow(traitChips)),
 			TierLabel = e(Text, {
-				Position = UDim2.fromOffset(0, 88),
+				Position = UDim2.fromOffset(0, 124),
 				Size = UDim2.fromOffset(90, 28),
 				Text = "Rarity",
 				TextSize = 12,
 				TextColor3 = Theme.colors.textFaint,
 			}),
 			Tiers = e("Frame", {
-				Position = UDim2.fromOffset(100, 88),
+				Position = UDim2.fromOffset(100, 124),
 				Size = UDim2.new(1, -100, 0, 28),
 				BackgroundTransparency = 1,
 			}, chipRow(tierChips)),
 			ConditionLabel = e(Text, {
-				Position = UDim2.fromOffset(0, 122),
+				Position = UDim2.fromOffset(0, 158),
 				Size = UDim2.fromOffset(90, 28),
 				Text = "Condition",
 				TextSize = 12,
 				TextColor3 = Theme.colors.textFaint,
 			}),
 			Conditions = e("Frame", {
-				Position = UDim2.fromOffset(100, 122),
+				Position = UDim2.fromOffset(100, 158),
 				Size = UDim2.new(1, -100, 0, 28),
 				BackgroundTransparency = 1,
 			}, chipRow(conditionChips)),
 			ApplyLabel = e(Text, {
-				Position = UDim2.fromOffset(0, 166),
+				Position = UDim2.fromOffset(0, 202),
 				Size = UDim2.fromOffset(90, 28),
 				Text = "Apply to",
 				TextSize = 12,
 				TextColor3 = Theme.colors.textFaint,
 			}),
 			Apply = e("Frame", {
-				Position = UDim2.fromOffset(100, 166),
+				Position = UDim2.fromOffset(100, 202),
 				Size = UDim2.new(1, -100, 0, 28),
 				BackgroundTransparency = 1,
 			}, chipRow(countChips)),
