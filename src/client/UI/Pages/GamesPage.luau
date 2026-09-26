@@ -252,7 +252,8 @@ local function GamesPage(props)
 	}
 	local cards = {
 		Layout = e("UIGridLayout", {
-			CellSize = UDim2.new(1 / COLUMNS, -CARD_GAP * (COLUMNS - 1) / COLUMNS, 0, CARD_HEIGHT),
+			-- a pixel of slack so rounding can never wrap the last card of a row onto the next
+			CellSize = UDim2.new(1 / COLUMNS, -CARD_GAP * (COLUMNS - 1) / COLUMNS - 1, 0, CARD_HEIGHT),
 			CellPadding = UDim2.fromOffset(CARD_GAP, CARD_GAP),
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
