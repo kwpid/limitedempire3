@@ -15,6 +15,7 @@ local Theme = require(script.Parent.Parent.Theme)
 local Text = require(script.Parent.Text)
 local TraitText = require(script.Parent.TraitText)
 local TrackerBadge = require(script.Parent.TrackerBadge)
+local TierGradient = require(script.Parent.TierGradient)
 
 local e = React.createElement
 
@@ -121,6 +122,8 @@ local function ItemDetails(props)
 				Size = UDim2.new(1, 0, 0, 3),
 				BackgroundColor3 = tier.color,
 				BorderSizePixel = 0,
+			}, {
+				Shimmer = e(TierGradient, { tier = tier }),
 			}),
 			Tracker = item.tracker and e(TrackerBadge, {
 				count = item.tracker.opens,
@@ -145,6 +148,8 @@ local function ItemDetails(props)
 			Text = tier.name .. " Limited" .. (info and info.year > 0 and `, {info.year}` or ""),
 			TextSize = 12,
 			TextColor3 = tier.color,
+		}, {
+			Shimmer = e(TierGradient, { tier = tier }),
 		}),
 		Value = e(Text, {
 			LayoutOrder = 5,

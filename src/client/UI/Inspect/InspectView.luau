@@ -17,6 +17,7 @@ local Button = require(script.Parent.Parent.Components.Button)
 local ConfirmButton = require(script.Parent.Parent.Components.ConfirmButton)
 local WearBar = require(script.Parent.Parent.Components.WearBar)
 local TrackerBadge = require(script.Parent.Parent.Components.TrackerBadge)
+local TierGradient = require(script.Parent.Parent.Components.TierGradient)
 local InspectStage = require(script.Parent.Parent.Parent.Controllers.InspectStage)
 
 local e = React.createElement
@@ -199,6 +200,7 @@ local function InspectView(props)
 				BorderSizePixel = 0,
 			}, {
 				Padding = e("UIPadding", { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8) }),
+				Shimmer = e(TierGradient, { tier = tier }),
 				Label = e(Text, {
 					AutomaticSize = Enum.AutomaticSize.X,
 					Size = UDim2.fromScale(0, 1),

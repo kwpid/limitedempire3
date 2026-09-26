@@ -7,6 +7,7 @@ local Text = require(script.Parent.Text)
 local TraitText = require(script.Parent.TraitText)
 local Checkmark = require(script.Parent.Checkmark)
 local TrackerBadge = require(script.Parent.TrackerBadge)
+local TierGradient = require(script.Parent.TierGradient)
 local Sfx = require(script.Parent.Parent.Parent.Controllers.Sfx)
 
 local e = React.createElement
@@ -43,7 +44,8 @@ local FADE_HOVER = NumberSequence.new({
 
 local function ItemTile(props)
 	local hovered, setHovered = React.useState(false)
-	local accent = props.accent or ItemRegistry.tier(props.assetId).color
+	local tier = ItemRegistry.tier(props.assetId)
+	local accent = props.accent or tier.color
 	local info = ItemRegistry.get(props.assetId)
 	local clickable = props.onSelect ~= nil
 
@@ -122,6 +124,8 @@ local function ItemTile(props)
 			BackgroundColor3 = accent,
 			BorderSizePixel = 0,
 			ZIndex = 2,
+		}, {
+			Shimmer = if props.accent then nil else e(TierGradient, { tier = tier }),
 		}),
 		Tracker = props.trackerCount and e(TrackerBadge, {
 			count = props.trackerCount,

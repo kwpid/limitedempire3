@@ -13,7 +13,6 @@
 local Shared = script.Parent.Parent
 local Config = require(Shared.Config)
 local ItemRegistry = require(Shared.Items.ItemRegistry)
-local Tiers = require(Shared.Items.Tiers)
 local Valuation = require(Shared.Modifiers.Valuation)
 local SeriesRegistry = require(Shared.Series.SeriesRegistry)
 local StableHash = require(Shared.Util.StableHash)
@@ -44,9 +43,7 @@ export type Case = {
 	seriesOf: { [number]: string },
 }
 
-local specialTier = Tiers.get(CaseData.specialTier)
-assert(specialTier, `CaseData.specialTier "{CaseData.specialTier}" is not a tier`)
-local SPECIAL_MIN_VALUE = specialTier.minValue
+local SPECIAL_MIN_VALUE = CaseData.specialMinValue
 
 local function roundUpNice(n: number): number
 	if n <= 0 then

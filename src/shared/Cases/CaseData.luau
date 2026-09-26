@@ -3,17 +3,18 @@
 -- from items worth guestMinValue or more, guestCount per guest series, picked by a stable hash of the case id.
 -- every series must be in at least one case's series list so every item can be unboxed somewhere, and items in
 -- more than one series can drop from more than one case.
--- items in the specialTier and above are hidden as the case's "rare special items".
+-- items worth specialMinValue or more are hidden as the case's "rare special items". this is a value on its own
+-- rather than a tier so retuning the rarity tiers never changes case odds or prices.
 --
 -- fields: curve (odds are value^-curve inside each group, lower = pricier items drop more),
 -- specialChance (combined odds of hitting the hidden special pool, 0.0015 = 1 in 667),
--- specialTier (tier id from Tiers, that tier and above are hidden),
+-- specialMinValue (base value at which an item joins the hidden special pool),
 -- cases (id, name, order, color, series = { series id }, guests = { series theme id }).
 
 return {
 	curve = 0.9,
 	specialChance = 0.0015,
-	specialTier = "mythic",
+	specialMinValue = 2_000_000,
 	guestMinValue = 30_000,
 	guestCount = 6,
 	cases = {

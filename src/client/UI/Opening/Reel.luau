@@ -7,6 +7,7 @@ local ItemRegistry = require(ReplicatedStorage.Shared.Items.ItemRegistry)
 local Theme = require(script.Parent.Parent.Theme)
 local Sfx = require(script.Parent.Parent.Parent.Controllers.Sfx)
 local SpecialTile = require(script.Parent.Parent.Components.SpecialTile)
+local TierGradient = require(script.Parent.Parent.Components.TierGradient)
 
 local e = React.createElement
 
@@ -132,6 +133,8 @@ local function Reel(props)
 				Size = UDim2.new(1, 0, 0, 4),
 				BackgroundColor3 = tier.color,
 				BorderSizePixel = 0,
+			}, {
+				Shimmer = e(TierGradient, { tier = tier }),
 			}),
 		})
 	end

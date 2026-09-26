@@ -36,7 +36,11 @@ local AUTO_OPEN_DELAY = 1.5
 local function playReveal(item)
 	local trait = Traits.get(item.trait)
 	local rank = ItemRegistry.tier(item.assetId).rank
-	if (trait and trait.announce) or rank >= 6 or Valuation.value(item) >= Config.AnnounceValue then
+	if rank >= 8 then
+		Sfx.play("revealMythic", 0.65)
+		Sfx.play("revealMythicSweep")
+		Sfx.play("revealRare", 1.2)
+	elseif (trait and trait.announce) or rank >= 6 or Valuation.value(item) >= Config.AnnounceValue then
 		Sfx.play("revealMythic")
 		Sfx.play("revealMythicSweep")
 	elseif rank >= 4 or trait then
