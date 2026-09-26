@@ -5,8 +5,9 @@
 -- roblox's default name tags are turned off on spawn, the client overhead ui replaces them.
 -- a worn face tags the head instead with LE_DecalOnly = true. accessories are matched to items through
 -- AccessoryDescription.Instance when available, otherwise by mesh id / name against ItemModelService models.
--- custom items (ItemRegistry.isCustom) are not catalog items, so they are cloned from their real Accessory and
--- added after the description is applied (tagged LE_CustomWorn so the next refresh can swap them out).
+-- custom items (ItemRegistry.isCustom) are not catalog items, so they are cloned from their real object
+-- (ItemModelService:GetCustom) after the description is applied: accessories go on the character, tools go in the
+-- backpack. both are tagged LE_CustomWorn so the next refresh can swap them out.
 --
 -- api: AvatarService:SetEquipped(player, uids) -> { ok, err? }, AvatarService:Refresh(player), AvatarService:Spawn(player)
 -- client calls it through Net.functions.SetEquipped:InvokeServer({ uid, ... }).
@@ -153,18 +154,29 @@ local function decorate(humanoid: Humanoid, items: { Types.ItemInstance })
 
 	local pending: { [number]: Types.ItemInstance } = {}
 	local matched: { [Accessory]: Types.ItemInstance } = {}
-	for _, accessory in character:GetChildren() do
-		if accessory:IsA("Accessory") and CollectionService:HasTag(accessory, CUSTOM_TAG) then
-			accessory:Destroy()
+	local player = Players:GetPlayerFromCharacter(character)
+	local backpack = player and player:FindFirstChildOfClass("Backpack")
+	for _, container in { character, backpack } do
+		for _, child in (container :: Instance):GetChildren() do
+			if CollectionService:HasTag(child, CUSTOM_TAG) then
+				child:Destroy()
+			end
 		end
 	end
 	for _, item in items do
 		if ItemRegistry.isCustom(item.assetId) then
-			local accessory = ItemModelService:GetAccessory(item.assetId)
-			if accessory then
-				CollectionService:AddTag(accessory, CUSTOM_TAG)
-				humanoid:AddAccessory(accessory)
-				matched[accessory] = item
+			local wearable = ItemModelService:GetCustom(item.assetId)
+			if wearable and wearable:IsA("Accessory") then
+				CollectionService:AddTag(wearable, CUSTOM_TAG)
+				humanoid:AddAccessory(wearable)
+				matched[wearable] = item
+			elseif wearable and wearable:IsA("Tool") and backpack then
+				CollectionService:AddTag(wearable, CUSTOM_TAG)
+				wearable:SetAttribute("LE_Uid", item.uid)
+				ItemEffects.apply(wearable, item)
+				wearable.Parent = backpack
+			elseif wearable then
+				wearable:Destroy()
 			end
 		elseif ItemRegistry.isFace(item.assetId) then
 			local head = character:FindFirstChild("Head")
