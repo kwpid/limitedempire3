@@ -129,17 +129,22 @@ local function ItemDetails(props)
 			}, {
 				Shimmer = e(TierGradient, { tier = tier }),
 			}),
-			Tracker = item.tracker and e(TrackerBadge, {
-				count = item.tracker.opens,
-				anchorPoint = Vector2.new(0, 1),
-				position = UDim2.new(0, 6, 1, -8),
-				zIndex = 2,
-			}),
 		}),
 		Spacer = e("Frame", { LayoutOrder = 2, Size = UDim2.fromOffset(0, 6), BackgroundTransparency = 1 }),
+		TrackerBadge = item.tracker and e("Frame", {
+			LayoutOrder = 3,
+			Size = UDim2.new(1, 0, 0, 22),
+			BackgroundTransparency = 1,
+		}, {
+			Badge = e(TrackerBadge, {
+				count = item.tracker.opens,
+				title = "Stat Tracker",
+				textSize = 12,
+			}),
+		}),
 		Name = e(TraitText, {
 			trait = traitIds[1],
-			LayoutOrder = 3,
+			LayoutOrder = 4,
 			Size = UDim2.new(1, 0, 0, 24),
 			Text = Traits.fullName(traitIds, info and info.name or "Unknown"),
 			TextSize = 20,
@@ -147,7 +152,7 @@ local function ItemDetails(props)
 			display = true,
 		}),
 		Tier = e(Text, {
-			LayoutOrder = 4,
+			LayoutOrder = 5,
 			Size = UDim2.new(1, 0, 0, 16),
 			Text = tier.name .. " Limited" .. (info and info.year > 0 and `, {info.year}` or ""),
 			TextSize = 12,
@@ -156,7 +161,7 @@ local function ItemDetails(props)
 			Shimmer = e(TierGradient, { tier = tier }),
 		}),
 		Value = e(Text, {
-			LayoutOrder = 5,
+			LayoutOrder = 6,
 			Size = UDim2.new(1, 0, 0, 30),
 			Text = Format.cash(breakdown.total),
 			TextSize = 24,
@@ -164,60 +169,60 @@ local function ItemDetails(props)
 			display = true,
 		}),
 		Base = e(Row, {
-			layoutOrder = 6,
+			layoutOrder = 7,
 			label = "Base value",
 			value = Format.cash(breakdown.base),
 		}),
 		Condition = e(Row, {
-			layoutOrder = 7,
+			layoutOrder = 8,
 			label = "Condition",
 			value = band.name .. multiplierText(breakdown.condition),
 			color = band.color,
 		}),
 		Float = e(Row, {
-			layoutOrder = 8,
+			layoutOrder = 9,
 			label = "Float",
 			value = Format.float(item.float),
 		}),
 		Serial = e(Row, {
-			layoutOrder = 9,
+			layoutOrder = 10,
 			label = "Serial",
 			value = Format.serial(item.serial) .. (serialLabel and `  {serialLabel}` or "") .. multiplierText(breakdown.serial),
 			color = serialLabel and Theme.colors.cash or nil,
 		}),
 		Trait = e(Row, {
-			layoutOrder = 10,
+			layoutOrder = 11,
 			label = "Trait",
 			trait = traitIds[1],
 			value = trait and (trait.name .. multiplierText(trait.multiplier)) or "None",
 			color = trait and trait.uiColor or Theme.colors.textFaint,
 		}),
 		Stacked = stacked and e(Row, {
-			layoutOrder = 11,
+			layoutOrder = 12,
 			label = "Stacked trait",
 			trait = stacked.id,
 			value = string.format("%s  +x%.2f", stacked.name, Traits.stackBonus(stacked.id)),
 			color = stacked.uiColor,
 		}),
 		Tracker = item.tracker and e(Row, {
-			layoutOrder = 12,
+			layoutOrder = 13,
 			label = "Stat Tracker",
 			value = `{Format.commas(item.tracker.opens)} opened` .. multiplierText(breakdown.tracker),
 			color = Theme.colors.tracker,
 		}),
 		Series = e(Row, {
-			layoutOrder = 13,
+			layoutOrder = 14,
 			label = "Series",
 			value = SeriesRegistry.name(CaseRegistry.itemSeries(item)),
 		}),
 		Owner = e(Row, {
-			layoutOrder = 14,
+			layoutOrder = 15,
 			label = "OG Owner",
 			value = ownerText(item.originalOwner),
 			color = if item.originalOwner then nil else Theme.colors.textFaint,
 		}),
 		Odds = advanced and e(Row, {
-			layoutOrder = 15,
+			layoutOrder = 16,
 			label = "Drop chance",
 			value = (function()
 				local chance = CaseRegistry.chanceOf(item.caseId, item.assetId)
@@ -226,12 +231,12 @@ local function ItemDetails(props)
 			end)(),
 		}),
 		AssetId = advanced and e(Row, {
-			layoutOrder = 16,
+			layoutOrder = 17,
 			label = "Asset ID",
 			value = tostring(item.assetId),
 		}),
 		Unboxed = advanced and e(Row, {
-			layoutOrder = 17,
+			layoutOrder = 18,
 			label = "Unboxed",
 			value = os.date("%b %d, %Y  %H:%M", item.obtainedAt),
 		}),

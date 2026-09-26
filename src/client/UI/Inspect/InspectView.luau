@@ -178,12 +178,6 @@ local function InspectView(props)
 				TextColor3 = props.captionColor or Theme.colors.textDim,
 				display = true,
 			}),
-			Tracker = item.tracker and e(TrackerBadge, {
-				count = item.tracker.opens,
-				textSize = 13,
-				anchorPoint = Vector2.new(0, 1),
-				position = UDim2.fromOffset(0, 0),
-			}),
 			Name = e(TraitText, {
 				trait = traitIds[1],
 				Position = UDim2.fromOffset(0, 20),
@@ -235,6 +229,14 @@ local function InspectView(props)
 		}, {
 			Corner = e("UICorner", { CornerRadius = UDim.new(0, 4) }),
 			Stroke = e("UIStroke", { Color = Theme.colors.stroke }),
+			Tracker = item.tracker and e(TrackerBadge, {
+				count = item.tracker.opens,
+				title = "Stat Tracker",
+				label = "cases opened",
+				textSize = 14,
+				anchorPoint = Vector2.new(0, 1),
+				position = UDim2.new(0, 0, 0, -8),
+			}),
 			Strip = e("Frame", {
 				Size = UDim2.new(1, 0, 0, 3),
 				BackgroundColor3 = accent,

@@ -137,7 +137,9 @@ local function InventoryPage(props)
 				ScrollingDirection = Enum.ScrollingDirection.Y,
 				ScrollBarThickness = 3,
 				ScrollBarImageColor3 = Theme.colors.stroke,
+				VerticalScrollBarInset = Enum.ScrollBarInset.ScrollBar,
 			}, {
+				Padding = e("UIPadding", { PaddingRight = UDim.new(0, 4) }),
 				Content = e(ItemDetails, { item = selected, thumbnailSize = 120 }),
 			}),
 			Buttons = e("Frame", {
