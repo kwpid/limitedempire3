@@ -17,4 +17,14 @@ return {
 		year = 2026,
 		custom = true,
 	},
+	[102356151365854] = {
+		name = "2026 Bloxy Award (Alpha Reward)",
+		acronym = "",
+		rap = 0,
+		value = 0,
+		valued = true,
+		assetType = 8,
+		year = 2026,
+		custom = true,
+	},
 }
