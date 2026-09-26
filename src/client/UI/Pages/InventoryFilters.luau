@@ -11,6 +11,9 @@ local SeriesRegistry = require(Shared.Series.SeriesRegistry)
 local InventoryFilters = {}
 
 InventoryFilters.rarities = { { id = "all", label = "All" } }
+for _, tier in Tiers.custom do
+	table.insert(InventoryFilters.rarities, { id = tier.id, label = tier.name, color = tier.color })
+end
 for index = #Tiers.list, 1, -1 do
 	local tier = Tiers.list[index]
 	table.insert(InventoryFilters.rarities, { id = tier.id, label = tier.name, color = tier.color })

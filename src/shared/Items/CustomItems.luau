@@ -1,6 +1,7 @@
 -- hand made items that are not in the generated ItemData (not Rolimons limiteds), like event exclusives.
--- same fields as ItemData plus custom = true. they are never put in series or cases on their own, they are given
--- out another way (events later, the admin data editor for now).
+-- same fields as ItemData plus custom = true, and optionally rarity = a custom rarity id from Tiers.custom
+-- ("alpha", "dev") instead of the rarity its value would give. they are never put in series or cases on their
+-- own, they are given out another way (events later, the admin data editor for now).
 --
 -- the server needs the item's real Accessory or Tool (the catalog based avatar loading can't use custom uploads):
 --   1. best: in Studio, insert the asset and put its Accessory or Tool in ServerStorage > CustomItemModels (create
@@ -11,9 +12,9 @@
 -- 19 tool (goes in the backpack when equipped)
 
 return {
-	-- test item: a recolor of an existing roblox item. assetType is a guess (hat), change it if it is another kind
 	[97688070021673] = {
 		name = "Immortal Sword: Chroma Intent",
+		rarity = "dev",
 		acronym = "",
 		rap = 250000,
 		value = 250000,
@@ -24,6 +25,7 @@ return {
 	},
 	[79714900624693] = {
 		name = "2026 Bloxy Award (Alpha Reward)",
+		rarity = "alpha",
 		acronym = "",
 		rap = 0,
 		value = 0,

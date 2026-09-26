@@ -19,6 +19,7 @@ export type ItemInfo = {
 	assetType: number,
 	year: number,
 	custom: boolean?,
+	rarity: string?,
 }
 
 local ACCESSORY_TYPES: { [number]: Enum.AccessoryType } = {
@@ -77,8 +78,11 @@ function ItemRegistry.baseValue(assetId: number): number
 	return info and info.value or 0
 end
 
+-- custom items can name a custom rarity (Tiers.custom), everything else gets its tier from value
 function ItemRegistry.tier(assetId: number): Tiers.Tier
-	return Tiers.fromValue(ItemRegistry.baseValue(assetId))
+	local info = ITEMS[assetId]
+	local custom = info and info.rarity and Tiers.get(info.rarity)
+	return custom or Tiers.fromValue(ItemRegistry.baseValue(assetId))
 end
 
 function ItemRegistry.accessoryType(assetId: number): Enum.AccessoryType?

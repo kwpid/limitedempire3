@@ -1,7 +1,11 @@
 -- rarity tiers, picked from an item's base value so an item is the same tier in every case.
 -- each tier above legendary is roughly 4-5x the one below and holds fewer items, divine is the ~13 best items.
 -- gradient (optional) is an animated shimmer the ui puts on the tier's bars and labels.
--- api: Tiers.list (ordered low to high), Tiers.fromValue(value) -> tier, Tiers.get(id) -> tier
+-- custom rarities (Tiers.custom) are never picked from value: only custom items that name one with their rarity
+-- field (see Items/CustomItems) have them. they sit outside the value ladder, so they are left out of case odds,
+-- auto-sell and the admin rarity override.
+-- api: Tiers.list (value tiers, ordered low to high), Tiers.custom (custom rarities), Tiers.fromValue(value) -> tier,
+-- Tiers.get(id) -> tier (value or custom)
 
 export type Tier = {
 	id: string,
@@ -10,6 +14,7 @@ export type Tier = {
 	color: Color3,
 	rank: number,
 	gradient: ColorSequence?,
+	custom: boolean?,
 }
 
 local LIST: { Tier } = {
@@ -36,13 +41,50 @@ local LIST: { Tier } = {
 	},
 }
 
+-- rank 0 so nothing that compares ranks (reveal sounds) treats them as a value tier
+local CUSTOM: { Tier } = {
+	{
+		id = "alpha",
+		name = "Alpha",
+		minValue = math.huge,
+		color = Color3.fromRGB(255, 196, 46),
+		rank = 0,
+		custom = true,
+		gradient = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 196, 46)),
+			ColorSequenceKeypoint.new(0.45, Color3.fromRGB(255, 196, 46)),
+			ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 245, 200)),
+			ColorSequenceKeypoint.new(0.55, Color3.fromRGB(255, 196, 46)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 196, 46)),
+		}),
+	},
+	{
+		id = "dev",
+		name = "Dev",
+		minValue = math.huge,
+		color = Color3.fromRGB(80, 230, 140),
+		rank = 0,
+		custom = true,
+		gradient = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(80, 230, 140)),
+			ColorSequenceKeypoint.new(0.5, Color3.fromRGB(70, 210, 220)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 230, 140)),
+		}),
+	},
+}
+
 local byId = {}
 for _, tier in LIST do
+	byId[tier.id] = tier
+end
+for _, tier in CUSTOM do
+	assert(not byId[tier.id], `duplicate tier id "{tier.id}"`)
 	byId[tier.id] = tier
 end
 
 local Tiers = {}
 Tiers.list = LIST
+Tiers.custom = CUSTOM
 
 function Tiers.fromValue(value: number): Tier
 	for i = #LIST, 1, -1 do
