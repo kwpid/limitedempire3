@@ -9,7 +9,7 @@
 --     switch it to all ranks from the panel (per server, for testing); LEADERBOARD_ALL_RANKS is the default.
 --   RANK_REWARDS / TOP_REWARDS: end of season rewards (see below).
 -- api: Seasons.current(now?) -> (id, startsAt, endsAt?), Seasons.range(id) -> (startsAt, endsAt?),
--- Seasons.name(id), Seasons.caseFor(id) -> caseId?, Seasons.topReward(placement) -> TopReward?,
+-- Seasons.name(id), Seasons.short(id) ("Pre-Season" or "S1"...), Seasons.caseFor(id) -> caseId?, Seasons.topReward(placement) -> TopReward?,
 -- Seasons.softReset(sp) -> sp, Seasons.decay(sp, inactiveDays) -> sp, Seasons.today() -> day number (utc)
 
 local Seasons = {}
@@ -19,7 +19,7 @@ Seasons.LENGTH_DAYS = 30
 Seasons.SP_MULTIPLIER = 1
 
 Seasons.NAMES = {
-	[0] = "Season 0 · Alpha",
+	[0] = "Pre-Season",
 }
 
 Seasons.CASES = {
@@ -40,7 +40,7 @@ Seasons.LEADERBOARD_MIN_SP = 50_000
 Seasons.LEADERBOARD_ALL_RANKS = false
 
 -- end of season rewards, paid the first time a player joins after the season ended (only if they earned SP in it).
--- everyone gets their final rank's title ("S0 Gold", Shared/Titles makes one per season and rank) and cash.
+-- everyone gets their final rank's title ("Pre-Season Gold", "S1 Gold"; Shared/Titles makes one per season and rank) and cash.
 -- Legends in the top 100 also get the best placement title they reached and its cash on top.
 Seasons.RANK_REWARDS = {
 	bronze = 10_000,
@@ -99,6 +99,11 @@ function Seasons.topReward(placement: number): TopReward?
 		end
 	end
 	return nil
+end
+
+-- short label for titles and chips: "Pre-Season" for Season 0, "S1", "S2"... after
+function Seasons.short(id: number): string
+	return if id == 0 then "Pre-Season" else `S{id}`
 end
 
 function Seasons.name(id: number): string

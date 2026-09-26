@@ -512,8 +512,8 @@ local function AdminPage(props)
 	for seasonId = 0, Seasons.current() + 5 do
 		seasonChips["S" .. seasonId] = e(Chip, {
 			layoutOrder = seasonId,
-			text = `S{seasonId}`,
-			width = 48,
+			text = Seasons.short(seasonId),
+			width = if seasonId == 0 then 90 else 48,
 			active = grantSeason == seasonId,
 			onClick = function()
 				setGrantSeason(seasonId)

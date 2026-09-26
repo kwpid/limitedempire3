@@ -6,8 +6,8 @@
 -- (CosmeticService.MODERATOR_USER_IDS). titles without a grant are unlocked (career milestones and achievements
 -- in Shared/Progress, events later) and saved on the player. shown above the name on overheads and in chat.
 --
--- end of season titles are made below for every season up to the current one: "s{n}_{rank tier}" (S0 Gold, rank
--- color, Champion white with a purple glow, Legend white with a gold glow) and "s{n}_{top reward id}" (S0 Top 10
+-- end of season titles are made below for every season up to the current one: "s{n}_{rank tier}" (Pre-Season Gold, S1 Gold, rank
+-- color, Champion white with a purple glow, Legend white with a gold glow) and "s{n}_{top reward id}" (S1 Top 10
 -- Legend, gold with a purple glow). ProgressService unlocks them when a season ends (Shared/Progress/Seasons).
 -- SEASONS_AHEAD future seasons get titles too, so admins can grant them for testing.
 --
@@ -225,7 +225,7 @@ for seasonId = Seasons.current() + SEASONS_AHEAD, 0, -1 do
 	for _, reward in Seasons.TOP_REWARDS do
 		table.insert(bySeason[seasonId], {
 			id = seasonTopId(seasonId, reward.id),
-			name = `S{seasonId} {reward.name}`,
+			name = `{Seasons.short(seasonId)} {reward.name}`,
 			color = GOLD,
 			glow = true,
 			glowColor = PURPLE_GLOW,
@@ -239,7 +239,7 @@ for seasonId = Seasons.current() + SEASONS_AHEAD, 0, -1 do
 		local glowColor = if tier.id == "legend" then GOLD_GLOW elseif tier.id == "champion" then PURPLE_GLOW else nil
 		table.insert(bySeason[seasonId], {
 			id = seasonRankId(seasonId, tier.id),
-			name = `S{seasonId} {tier.name}`,
+			name = `{Seasons.short(seasonId)} {tier.name}`,
 			color = if glowColor then WHITE else tier.color,
 			glow = glowColor ~= nil,
 			glowColor = glowColor,
