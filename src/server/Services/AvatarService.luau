@@ -5,9 +5,10 @@
 -- roblox's default name tags are turned off on spawn, the client overhead ui replaces them.
 -- a worn face tags the head instead with LE_DecalOnly = true. accessories are matched to items through
 -- AccessoryDescription.Instance when available, otherwise by mesh id / name against ItemModelService models.
--- custom items (ItemRegistry.isCustom) are not catalog items, so they are cloned from their real object
--- (ItemModelService:GetCustom) after the description is applied: accessories go on the character, tools go in the
--- backpack. both are tagged LE_CustomWorn so the next refresh can swap them out.
+-- custom items (ItemRegistry.isCustom) and tools (gear, catalog or custom) can't go through the description, so they
+-- are cloned from their real object (ItemModelService:GetWearable) after the description is applied: accessories
+-- go on the character, the one equipped tool is put straight in the player's hand (it can't be dropped). both are
+-- tagged LE_CustomWorn so the next refresh can swap them out.
 --
 -- api: AvatarService:SetEquipped(player, uids) -> { ok, err? }, AvatarService:Refresh(player), AvatarService:Spawn(player)
 -- client calls it through Net.functions.SetEquipped:InvokeServer({ uid, ... }).
@@ -164,17 +165,20 @@ local function decorate(humanoid: Humanoid, items: { Types.ItemInstance })
 		end
 	end
 	for _, item in items do
-		if ItemRegistry.isCustom(item.assetId) then
-			local wearable = ItemModelService:GetCustom(item.assetId)
+		if ItemRegistry.isCustom(item.assetId) or ItemRegistry.isTool(item.assetId) then
+			local wearable = ItemModelService:GetWearable(item.assetId)
 			if wearable and wearable:IsA("Accessory") then
 				CollectionService:AddTag(wearable, CUSTOM_TAG)
 				humanoid:AddAccessory(wearable)
 				matched[wearable] = item
 			elseif wearable and wearable:IsA("Tool") and backpack then
-				CollectionService:AddTag(wearable, CUSTOM_TAG)
-				wearable:SetAttribute("LE_Uid", item.uid)
-				ItemEffects.apply(wearable, item)
-				wearable.Parent = backpack
+				local tool = wearable :: Tool
+				CollectionService:AddTag(tool, CUSTOM_TAG)
+				tool:SetAttribute("LE_Uid", item.uid)
+				tool.CanBeDropped = false
+				ItemEffects.apply(tool, item)
+				tool.Parent = backpack
+				humanoid:EquipTool(tool)
 			elseif wearable then
 				wearable:Destroy()
 			end
@@ -256,6 +260,7 @@ function AvatarService:SetEquipped(player: Player, uids: any): Types.Result<nil>
 	local clean = {}
 	local seen = {}
 	local faces = 0
+	local tools = 0
 	for _, uid in uids do
 		if type(uid) ~= "string" or seen[uid] then
 			return { ok = false, err = "Invalid selection" }
@@ -268,6 +273,12 @@ function AvatarService:SetEquipped(player: Player, uids: any): Types.Result<nil>
 			faces += 1
 			if faces > 1 then
 				return { ok = false, err = "Only one face at a time" }
+			end
+		end
+		if ItemRegistry.isTool(item.assetId) then
+			tools += 1
+			if tools > 1 then
+				return { ok = false, err = "Only one tool at a time" }
 			end
 		end
 		seen[uid] = true

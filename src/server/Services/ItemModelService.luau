@@ -6,12 +6,15 @@
 --
 -- api: ItemModelService:Get(assetId) -> Model? (yields, cached), ItemModelService:Prepare(assetId) (non yielding),
 -- ItemModelService.meshKey(part) -> string? (numeric mesh id of a handle, used to match worn accessories to items),
--- ItemModelService:GetCustom(assetId) -> Accessory | Tool | nil (a fresh clone of a custom item's real object, yields)
+-- ItemModelService:GetWearable(assetId) -> Accessory | Tool | nil (a fresh clone of the item's real object for
+-- custom items and tools, yields)
 --
--- custom items (ItemRegistry.isCustom) come from ServerStorage.CustomItemModels first: put the item's Accessory or
--- Tool there in Studio, named by its asset id (a Model or Folder with that name holding one works too). that
--- always works. otherwise InsertService loads it, which Roblox only allows for assets owned by the game's owner
--- (the same user, or the group for group games). previews of custom items keep every part, not just the Handle.
+-- custom items (ItemRegistry.isCustom) and tools (ItemRegistry.isTool) are loaded as their real object:
+-- ServerStorage.CustomItemModels first (put the Accessory or Tool there in Studio, named by its asset id, a Model or
+-- Folder with that name holding one works too), otherwise InsertService, which Roblox allows for its own assets
+-- (catalog gear) and for assets owned by the game's owner. fighting tools (Shared.Items.ToolRules) have their scripts
+-- removed so they can be held but never deal damage, other tools (skateboards and such) keep working. previews of
+-- these keep every part, not just the Handle.
 -- built models carry "MeshKey" and "AccessoryName" attributes.
 -- clients ask through Net.functions.RequestItemModel:InvokeServer(assetId) -> boolean
 
@@ -22,6 +25,7 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local Shared = ReplicatedStorage.Shared
 local ItemRegistry = require(Shared.Items.ItemRegistry)
+local ToolRules = require(Shared.Items.ToolRules)
 local Net = require(Shared.Net)
 
 local FOLDER_NAME = "ItemModels"
@@ -137,7 +141,7 @@ local function pickWearable(root: Instance): Instance?
 	return root:FindFirstChildWhichIsA("Accessory", true) or root:FindFirstChildWhichIsA("Tool", true)
 end
 
-function ItemModelService:GetCustom(assetId: number): Instance?
+function ItemModelService:GetWearable(assetId: number): Instance?
 	local template = customTemplates[assetId]
 	if template == nil then
 		template = false
@@ -154,7 +158,7 @@ function ItemModelService:GetCustom(assetId: number): Instance?
 				template = wearable
 			else
 				warn(
-					`[ItemModelService] custom item {assetId} could not be loaded: {if ok
+					`[ItemModelService] item {assetId} could not be loaded: {if ok
 						then "the asset has no Accessory or Tool in it"
 						else loaded}. put its Accessory or Tool in ServerStorage.{CUSTOM_FOLDER_NAME} named "{assetId}", or make sure the game owner owns the asset`
 				)
@@ -163,14 +167,21 @@ function ItemModelService:GetCustom(assetId: number): Instance?
 				loaded:Destroy()
 			end
 		end
+		if template and template:IsA("Tool") and ToolRules.isCombat(assetId) then
+			for _, descendant in template:GetDescendants() do
+				if descendant:IsA("LuaSourceContainer") then
+					descendant:Destroy()
+				end
+			end
+		end
 		customTemplates[assetId] = template
 	end
 	return if template then template:Clone() else nil
 end
 
--- every part of a custom accessory or tool, anchored in place around the handle
-local function buildCustom(assetId: number): Model?
-	local source = ItemModelService:GetCustom(assetId)
+-- every part of a custom accessory or a tool, anchored in place around the handle
+local function buildWhole(assetId: number): Model?
+	local source = ItemModelService:GetWearable(assetId)
 	if not source then
 		return nil
 	end
@@ -212,8 +223,8 @@ local function buildCustom(assetId: number): Model?
 end
 
 local function build(assetId: number): Model?
-	if ItemRegistry.isCustom(assetId) then
-		return buildCustom(assetId)
+	if ItemRegistry.isCustom(assetId) or ItemRegistry.isTool(assetId) then
+		return buildWhole(assetId)
 	end
 	local isFace = ItemRegistry.isFace(assetId)
 	local source, container = loadSource(assetId, isFace)

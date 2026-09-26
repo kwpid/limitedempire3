@@ -8,7 +8,7 @@
 -- volumes splits a big series into numbered parts ("Royalty I", "Royalty II", ...) by a stable hash of the asset
 -- id, so regenerating ItemData never moves an item between volumes.
 --
--- kinds: Hat, Hair, Face (face accessory), FaceDecal (classic face), Neck, Shoulder, Front, Back, Waist
+-- kinds: Hat, Hair, Face (face accessory), FaceDecal (classic face), Neck, Shoulder, Front, Back, Waist, Tool (gear)
 
 return {
 	maxPerItem = 2,
@@ -42,7 +42,7 @@ return {
 			keywords = { "wizard*", "magic*", "magical", "sorcer*", "mage", "mages", "arcane", "spell*", "enchant*", "mystic*", "mystery", "witch*", "warlock*", "alchemist*", "potion*", "rune*", "oracle", "fortune*", "merlin*", "mathemagician", "conjur*", "hex" } },
 		{ id = "fiesta", name = "Fiesta",
 			keywords = { "party", "birthday", "sombrero*", "mardi", "summer*", "summertime", "beach", "cowboy*", "luau", "carnival", "festival*", "celebrat*", "fiesta", "confetti", "surf*", "tropical", "hawaii*", "picnic", "cake*", "pinata", "new years", "fourth of july", "independence" } },
-		{ id = "blades", name = "Bladebearers",
+		{ id = "blades", name = "Bladebearers", volumes = 2,
 			keywords = { "sword*", "blade*", "katana*", "periastron*", "scimitar*", "dagger*", "axe", "scythe*", "spear*", "venomshank*", "wrath", "swordpack*", "saber*", "sabre*" } },
 		{ id = "beasts", name = "Beasts & Horns",
 			keywords = { "horn", "horns", "dragon*", "monster*", "demon*", "beast*", "wolf", "wolves", "werewolf*", "kraken*", "serpent*", "hydra", "minotaur*", "claw*", "fang*", "tentacle*", "dino*", "dragonborn*" } },
@@ -68,6 +68,8 @@ return {
 			keywords = { "tie", "ties", "bowtie*", "bow tie", "scarf*", "necklace*", "chain", "chains", "collar*", "pendant*", "amulet*", "medal*", "lanyard*", "medallion*" } },
 		{ id = "backbling", name = "Back Bling", volumes = 2, kinds = { "Back", "Waist", "Front" },
 			keywords = { "wings", "wing", "cape", "capes", "cloak*", "backpack*", "bag", "bags", "swordpack*", "jetpack*", "quiver*" } },
+		{ id = "armory", name = "Armory", volumes = 3, kinds = { "Tool" },
+			keywords = {} },
 		{ id = "shades", name = "Shades Collective",
 			keywords = { "shades", "glasses", "sunglasses", "sunshades", "goggles", "visor", "specs", "spectacles", "monocle*", "eyewear", "lens*" } },
 		{ id = "gems", name = "Treasure Trove",

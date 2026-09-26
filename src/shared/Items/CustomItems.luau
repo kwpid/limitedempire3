@@ -9,7 +9,8 @@
 --   2. otherwise the server tries InsertService:LoadAsset, which Roblox only allows when the game's owner owns the
 --      asset (the same account, or the group for group games). the output says when this fails.
 -- assetType: 8 hat, 41 hair, 42 face accessory, 43 neck, 44 shoulder, 45 front, 46 back, 47 waist, 18 face,
--- 19 tool (goes in the backpack when equipped)
+-- 19 tool (held in the hand when equipped, one at a time). custom tools keep their scripts, set combat = true on
+-- one that deals damage to have its scripts removed (see ToolRules)
 
 return {
 	[97688070021673] = {

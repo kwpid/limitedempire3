@@ -2,7 +2,7 @@
 -- custom (hand made) items from CustomItems are looked up the same way as ItemData items, but all() only lists
 -- the generated ItemData limiteds (what series and cases are built from).
 -- api: ItemRegistry.all() -> the whole ItemData table (read only), ItemRegistry.custom() -> CustomItems table,
--- ItemRegistry.isCustom(assetId), ItemRegistry.isTool(assetId) (gear, only custom tools can be equipped), ItemRegistry.get(assetId), .baseValue(assetId), .tier(assetId), .accessoryType(assetId),
+-- ItemRegistry.isCustom(assetId), ItemRegistry.isTool(assetId) (gear, held in the hand when equipped), ItemRegistry.get(assetId), .baseValue(assetId), .tier(assetId), .accessoryType(assetId),
 -- .isFace(assetId), .isEquippable(assetId), .kind(assetId) -> "Hat" | "Hair" | "Face" | "FaceDecal" | "Neck" | ... or nil,
 -- .thumbnail(assetId, size?)
 
@@ -100,11 +100,8 @@ function ItemRegistry.isTool(assetId: number): boolean
 	return info ~= nil and info.assetType == GEAR_ASSET_TYPE
 end
 
--- catalog gear stays unequippable (and out of series and cases), custom tools go in the backpack when equipped
 function ItemRegistry.isEquippable(assetId: number): boolean
-	return ItemRegistry.accessoryType(assetId) ~= nil
-		or ItemRegistry.isFace(assetId)
-		or (ItemRegistry.isTool(assetId) and ItemRegistry.isCustom(assetId))
+	return ItemRegistry.accessoryType(assetId) ~= nil or ItemRegistry.isFace(assetId) or ItemRegistry.isTool(assetId)
 end
 
 function ItemRegistry.kind(assetId: number): string?

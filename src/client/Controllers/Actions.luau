@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared.Net)
 local Types = require(Shared.Types)
+local ItemRegistry = require(Shared.Items.ItemRegistry)
 local PlayerState = require(script.Parent.PlayerState)
 
 local Actions = {}
@@ -36,11 +37,22 @@ function Actions.admin(action: string, payload: any): Types.Result<any>
 end
 
 function Actions.toggleEquipped(uid: string): Types.Result<nil>
-	local equipped = table.clone(PlayerState.get().equipped)
+	local state = PlayerState.get()
+	local equipped = table.clone(state.equipped)
 	local index = table.find(equipped, uid)
 	if index then
 		table.remove(equipped, index)
 	else
+		-- only one tool can be held, equipping another tool swaps it out
+		local item = state.inventory[uid]
+		if item and ItemRegistry.isTool(item.assetId) then
+			for i = #equipped, 1, -1 do
+				local other = state.inventory[equipped[i]]
+				if other and ItemRegistry.isTool(other.assetId) then
+					table.remove(equipped, i)
+				end
+			end
+		end
 		table.insert(equipped, uid)
 	end
 	return Actions.setEquipped(equipped)
