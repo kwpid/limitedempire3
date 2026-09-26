@@ -1,5 +1,5 @@
 -- lifetime stats kept for every player (saved with their data, shown in the settings window).
--- the server updates them in CaseService and InventoryService.
+-- the server updates them in CaseService, InventoryService, GameService and IncomeService.
 -- api: PlayerStats.list (ordered, { id, label, format = "count" | "cash" | "item" }), PlayerStats.defaults()
 
 local PlayerStats = {}
@@ -23,6 +23,10 @@ PlayerStats.list = {
 	{ id = "hiloBest", label = "Best Higher or Lower streak", format = "count" },
 	{ id = "battles", label = "Case battles", format = "count" },
 	{ id = "battlesWon", label = "Case battles won", format = "count" },
+	{ id = "cashBets", label = "Coinflip and dice bets", format = "count" },
+	{ id = "cashWagered", label = "Wagered on coinflip and dice", format = "cash" },
+	{ id = "cashWon", label = "Won from coinflip and dice", format = "cash" },
+	{ id = "passiveEarned", label = "Passive income earned", format = "cash" },
 }
 
 function PlayerStats.defaults(): { [string]: number }

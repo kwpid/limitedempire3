@@ -5,6 +5,8 @@
 --   Upgrade(uids, targetAssetId) -> { ok, err?, data = { won, chance, roll, item? } }
 --   TradeUp(uids) -> { ok, err?, data = item }
 --   HiLoStart() -> { ok, data = round }, HiLoGuess("higher" | "lower") -> { ok, err?, data = result }
+--   CashGame("coinflip", bet, "heads" | "tails") / CashGame("dice", bet, chance) -> { ok, err?, data = { won,
+--   payout, multiplier, result } } (result is the side the coin landed on, or the dice roll 0 to 100)
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -17,6 +19,7 @@ local HigherLower = require(Shared.Games.HigherLower)
 local ItemRegistry = require(Shared.Items.ItemRegistry)
 local Net = require(Shared.Net)
 local TradeUp = require(Shared.Games.TradeUp)
+local CashGames = require(Shared.Games.CashGames)
 local Types = require(Shared.Types)
 local Upgrader = require(Shared.Games.Upgrader)
 local Valuation = require(Shared.Modifiers.Valuation)
@@ -29,6 +32,10 @@ local GameService = {}
 
 local rng = Random.new()
 local busy: { [Player]: boolean } = {}
+
+-- cash games settle instantly, this just stops a player firing bets faster than the ui can show them
+local CASH_GAME_COOLDOWN = 0.35
+local lastCashGame: { [Player]: number } = {}
 
 type HiLoRound = { left: number, right: number, streak: number }
 local hilo: { [Player]: HiLoRound } = {}
@@ -239,6 +246,50 @@ function GameService:HiLoGuess(player: Player, choice: any): Types.Result<any>
 	}
 end
 
+function GameService:CashGame(player: Player, gameId: any, bet: any, option: any): Types.Result<any>
+	if not CashGames.validBet(bet) then
+		return fail(`Bet between {CashGames.MIN_BET} and {CashGames.MAX_BET}`)
+	end
+	local multiplier
+	if gameId == "coinflip" then
+		if option ~= "heads" and option ~= "tails" then
+			return fail("Pick heads or tails")
+		end
+		multiplier = CashGames.COINFLIP_MULTIPLIER
+	elseif gameId == "dice" then
+		if not CashGames.validChance(option) then
+			return fail(`Pick a chance from {CashGames.MIN_CHANCE}% to {CashGames.MAX_CHANCE}%`)
+		end
+		multiplier = CashGames.diceMultiplier(option)
+	else
+		return fail("Invalid game")
+	end
+	local now = os.clock()
+	if lastCashGame[player] and now - lastCashGame[player] < CASH_GAME_COOLDOWN then
+		return fail("Slow down a little")
+	end
+	lastCashGame[player] = now
+	if not PlayerDataService:TrySpend(player, bet) then
+		return fail("Not enough cash")
+	end
+
+	local won, result
+	if gameId == "coinflip" then
+		result = if rng:NextNumber() < 0.5 then "heads" else "tails"
+		won = result == option
+	else
+		-- two decimals, like the ui shows. rolling under the chance wins
+		result = math.floor(rng:NextNumber() * 10000) / 100
+		won = result < option
+	end
+	local payout = if won then CashGames.payout(bet, multiplier) else 0
+	if payout > 0 then
+		PlayerDataService:AddCash(player, payout)
+	end
+	PlayerDataService:AddStats(player, { cashBets = 1, cashWagered = bet, cashWon = payout })
+	return { ok = true, data = { won = won, payout = payout, multiplier = multiplier, result = result } }
+end
+
 function GameService:Init()
 	Net.functions.Upgrade.OnServerInvoke = function(player, uids, targetAssetId)
 		return GameService:Upgrade(player, uids, targetAssetId)
@@ -252,9 +303,13 @@ function GameService:Init()
 	Net.functions.HiLoGuess.OnServerInvoke = function(player, choice)
 		return GameService:HiLoGuess(player, choice)
 	end
+	Net.functions.CashGame.OnServerInvoke = function(player, gameId, bet, option)
+		return GameService:CashGame(player, gameId, bet, option)
+	end
 	Players.PlayerRemoving:Connect(function(player)
 		busy[player] = nil
 		hilo[player] = nil
+		lastCashGame[player] = nil
 	end)
 end
 
