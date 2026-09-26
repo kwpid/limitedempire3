@@ -80,6 +80,15 @@ local function sellConfirm(value: number)
 	}
 end
 
+local function gameName(id: string?): string?
+	for _, entry in GamesPage.list do
+		if entry.id == id then
+			return entry.name
+		end
+	end
+	return nil
+end
+
 local function caseSeriesName(case): string?
 	for _, group in CaseRegistry.caseSeries() do
 		if group.id == case.caseSeries then
@@ -104,6 +113,7 @@ local function App(props)
 	local busy, setBusy = React.useState(false)
 	local inventoryTab, setInventoryTab = React.useState("items")
 	local adminTab, setAdminTab = React.useState("tools")
+	local selectedGame, setSelectedGame = React.useState(nil)
 	local autoOpen, setAutoOpen = React.useState(false)
 	local autoRunning, setAutoRunning = React.useState(false)
 	local autoCount, setAutoCount = React.useState(0)
@@ -454,11 +464,18 @@ local function App(props)
 		}),
 		GamesWindow = e(Window, {
 			visible = page == "games",
-			title = "Games",
-			subtitle = "upgrader, trade-up and more",
+			title = gameName(selectedGame) or "Games",
+			subtitle = if selectedGame then nil else `{#GamesPage.list} games`,
+			onBack = if selectedGame
+				then function()
+					setSelectedGame(nil)
+				end
+				else nil,
 			onClose = close,
 		}, {
-			Page = page == "games" and e(GamesPage, {
+			Page = page == "games" and e(GamesPage.component, {
+				game = selectedGame,
+				onSelect = setSelectedGame,
 				inventory = state.inventory,
 				equipped = state.equipped,
 				pinned = state.pinned,
